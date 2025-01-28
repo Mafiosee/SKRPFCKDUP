@@ -1,7 +1,8 @@
 {
   "files": [
     "SkyrimRP/profiles/SkyrimRP/skyrimprefs.ini",
-    "SkyrimRP/mods/AllMods/SKSE/Plugins/ActorLimitFix.log"
+    "SkyrimRP/mods/AllMods/SKSE/Plugins/ActorLimitFix.log",
+    "F:\Skyrim Role Play\SkyrimRP\overwrite\SKSE\Plugins\SkyrimPlatform.ini"
   ],
   "folders": []
 }
