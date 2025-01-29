@@ -2,6 +2,7 @@
   "files": [
     "SkyrimRP/profiles/SkyrimRP/skyrimprefs.ini",
     "SkyrimRP/mods/AllMods/SKSE/Plugins/ActorLimitFix.log",
+    "SkyrimRP/overwrite/SKSE/Plugins/SkyrimPlatform.ini",
     "SkyrimRP/Data/SkyrimRP/UI/main.js"
   ],
   "folders": []
