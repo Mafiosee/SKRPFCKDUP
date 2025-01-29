@@ -3,7 +3,11 @@
     "SkyrimRP/profiles/SkyrimRP/skyrimprefs.ini",
     "SkyrimRP/mods/AllMods/SKSE/Plugins/ActorLimitFix.log",
     "SkyrimRP/overwrite/SKSE/Plugins/SkyrimPlatform.ini",
-    "SkyrimRP/UI/main.js"
+    "SkyrimRP/UI/main.js",
+    "SkyrimRP/UI/196.js",
+    "SkyrimRP/UI/196.js.LICENSE.txt",
+    "SkyrimRP/UI/766.js.LICENSE.txt",
+    "SkyrimRP/UI/766.js"
   ],
   "folders": []
 }
