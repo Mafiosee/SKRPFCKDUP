@@ -1,0 +1,10 @@
+{
+  "files": [
+    "SkyrimRP/profiles/SkyrimRP/skyrimprefs.ini",
+    "SkyrimRP/mods/AllMods/SKSE/Plugins/ActorLimitFix.log",
+    "mods/AllMods/SKSE/Plugins/HelloWorld.dll",
+    "SkyrimRP/overwrite/SKSE/Plugins/SkyrimPlatform.ini",
+    "SkyrimRP/UI/main.js"
+  ],
+  "folders": []
+}
