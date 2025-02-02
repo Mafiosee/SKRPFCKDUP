@@ -7,5 +7,7 @@
     "SkyrimRP/overwrite/SKSE/Plugins/SkyrimPlatform.ini",
     "SkyrimRP/UI/main.js"
   ],
-  "folders": []
+  "folders": [
+    "SkyrimRP/Interface"
+  ]
 }
