@@ -2,12 +2,13 @@
   "files": [
     "SkyrimRP/profiles/SkyrimRP/skyrimprefs.ini",
     "SkyrimRP/mods/AllMods/SKSE/Plugins/ActorLimitFix.log",
-    "mods/AllMods/SKSE/Plugins/HelloWorld.dll",
+    "mods/AllMods/SKSE/Plugins/catmenu.dll",
+    "mods/AllMods/SKSE/Plugins/imgui.dll",
     "SkyrimRP/skse64_1_6_640.dll",
     "SkyrimRP/overwrite/SKSE/Plugins/SkyrimPlatform.ini",
     "SkyrimRP/UI/main.js"
   ],
   "folders": [
-    "SkyrimRP/Interface"
+    "mods/AllMods/SKSE/Plugins/catmenu"
   ]
 }
