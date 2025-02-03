@@ -4,8 +4,7 @@
     "SkyrimRP/mods/AllMods/SKSE/Plugins/ActorLimitFix.log",
     "mods/AllMods/SKSE/Plugins/HelloWorld.dll",
     "SkyrimRP/skse64_1_6_640.dll",
-    "SkyrimRP/overwrite/SKSE/Plugins/SkyrimPlatform.ini",
-    "123SkyrimRP/UI/main.js"
+    "SkyrimRP/overwrite/SKSE/Plugins/SkyrimPlatform.ini"
   ],
   "folders": []
 }
