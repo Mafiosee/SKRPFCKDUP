@@ -5,7 +5,7 @@
     "mods/AllMods/SKSE/Plugins/HelloWorld.dll",
     "SkyrimRP/skse64_1_6_640.dll",
     "SkyrimRP/overwrite/SKSE/Plugins/SkyrimPlatform.ini",
-    "SkyrimRP/UI/main.js"
+    "123SkyrimRP/UI/main.js"
   ],
   "folders": []
 }
