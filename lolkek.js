@@ -1,5 +1,5 @@
 /******/ (() => { // webpackBootstrap
-/******/  var __webpack_modules__ = ({
+/******/ 	var __webpack_modules__ = ({
 
 /***/ 2112:
 /***/ ((module) => {
@@ -2199,7 +2199,6 @@ class BrowserEventsServer {
         });
     }
     static sendEventToServer(data, eventName) {
-        (0, skyrimPlatform_1.printConsole)(`[sendEventToServer] Event: ${eventName}, data: ${JSON.stringify(data)}`);
         (0, Utils_1.sendEventToServer)(eventName, data);
     }
 }
@@ -25619,29 +25618,6 @@ class CameraManager {
 }
 exports.CameraManager = CameraManager;
 
-/***/ }),
-
-/***/ 8944:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TestMenushka = void 0;
-const skyrimPlatform_1 = __webpack_require__(2112);
-class TestMenushka {
-    constructor(appearance, pos, refrId, callback) {
-        
-    }
-    enable(appearance, refrId) {
-        
-    }
-    resurrect(refrId) {
-        
-    }
-}
-exports.TestMenushka = TestMenushka;
-
 
 /***/ }),
 
@@ -25662,7 +25638,6 @@ const InterfacesName_1 = __webpack_require__(3638);
 const settings_1 = __webpack_require__(5427);
 const SettingsId_1 = __webpack_require__(9373);
 const skyrimKeyCodeName_1 = __webpack_require__(6158);
-const timersService_1 = __webpack_require__(8031);
 const browserService_1 = __webpack_require__(5472);
 const spApiInteraction_1 = __webpack_require__(3331);
 const remoteServer_1 = __webpack_require__(8986);
@@ -25703,124 +25678,6 @@ class Colshape {
         }
     }
     playerInteracted() {
-        const str = "HONEYFACTORY_WORK_0_COLLECTING";
-        const HF_work_collect1 = 'honeyFactory_work_1_collecting_' + this.id.slice(-2);
-        const HF_work_collect0 = 'honeyFactory_work_0_collecting_' + this.id.slice(-2);
-        const testMenu = `
-                          (function() {
-                              const canvas = document.createElement('canvas');
-                              canvas.width = window.innerWidth;
-                              canvas.height = window.innerHeight;
-                              canvas.style.position = 'absolute';
-                              canvas.style.top = '0';
-                              canvas.style.left = '0';
-                              canvas.style.zIndex = '9999';
-                              canvas.style.pointerEvents = 'auto';
-
-                              document.body.appendChild(canvas);
-
-                              const ctx = canvas.getContext('2d');
-
-                              // Настройки кнопок
-                              const buttons = [
-                                  { text: 'Кнопка 1', x: 100, y: 150, width: 200, height: 50 },
-                                  { text: 'Кнопка 2', x: 100, y: 220, width: 200, height: 50 },
-                                  { text: 'Кнопка 3', x: 100, y: 290, width: 200, height: 50 },
-                                  { text: 'Выйти', x: 100, y: 360, width: 200, height: 50 },
-                              ];
-
-                              // Функция для отрисовки кнопок
-                              function drawButton(button) {
-                                  ctx.fillStyle = '#4CAF50'; // Цвет кнопки
-                                  ctx.fillRect(button.x, button.y, button.width, button.height);
-
-                                  ctx.fillStyle = '#ffffff'; // Цвет текста
-                                  ctx.font = '18px Arial';
-                                  ctx.textAlign = 'center';
-                                  ctx.textBaseline = 'middle';
-                                  ctx.fillText(button.text, button.x + button.width / 2, button.y + button.height / 2);
-                              }
-
-                              // Отрисовка всего меню
-                              function drawMenu() {
-                                  ctx.clearRect(0, 0, canvas.width, canvas.height); // Очистка холста
-
-                                  // Заголовок
-                                  ctx.fillStyle = '#333';
-                                  ctx.font = '24px Arial';
-                                  ctx.textAlign = 'center';
-                                  ctx.fillText('Тестовое меню', canvas.width / 2, 100);
-                                  // Кнопки
-                                  buttons.forEach(drawButton);
-                              }
-
-                              // Обработка кликов
-                              canvas.addEventListener('click', (event) => {
-                                  const rect = canvas.getBoundingClientRect();
-                                  const mouseX = event.clientX - rect.left;
-                                  const mouseY = event.clientY - rect.top;
-
-                                  buttons.forEach((button, index) => {
-                                      if (
-                                          mouseX >= button.x &&
-                                          mouseX <= button.x + button.width &&
-                                          mouseY >= button.y &&
-                                          mouseY <= button.y + button.height
-                                      ) {
-                                          if (index === buttons.length - 1) {
-                                              drawButton({ text: 'Test', x: 100, y: 410, width: 200, height: 50 });
-                                          } else {
-                                              alert(\`Вы нажали на кнопку: \${button.text}\`);
-                                          }
-                                      }
-                                  });
-                              });
-
-                              // Инициализация
-                              drawMenu();
-                          })();
-                      `;
-        //skyrimPlatform_1.browser.executeJavaScript(testMenu);
-        (0, skyrimPlatform_1.printConsole)('[MenuTest] IsFocused: ' + skyrimPlatform_1.browser.isFocused());
-        // if (this.id.toLowerCase().includes(str.toLowerCase()) && ColshapesHandler_1.botInit)
-        // {
-        //   spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(timersService_1.TimersService).setInterval(() => {
-        //     executeNextFunction();
-        //   }, 1000);
-        // }
-        // const HFfunc1 = () => {
-        //   if (ColshapesHandler_1.ColshapesHandler.isColshapeExist(HF_work_collect0) || ColshapesHandler_1.ColshapesHandler.isColshapeExist(HF_work_collect1)) {
-        //       return;
-        //   }
-        //   (0, Utils_1.sendEventToServer)("honeyFactory:win", null);
-        //   spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(browserService_1.BrowserService).executeBrowser('honeyFactory/hide', null, false);
-        // };
-        // const HFfunc2 = () => {
-        //   if (!ColshapesHandler_1.ColshapesHandler.isColshapeExist(HF_work_collect1)) {
-        //       return;
-        //   }
-        //   (0, Utils_1.sendEventToServer)(events_1.ColshapeEvents.onPlayerInteracted, HF_work_collect1);
-        // };
-        // const HFfunc3 = () => {
-        //   if (!ColshapesHandler_1.ColshapesHandler.isColshapeExist(HF_work_collect0)) {
-        //       return;
-        //   }
-        //   (0, Utils_1.sendEventToServer)(events_1.ColshapeEvents.onPlayerInteracted, HF_work_collect0);
-        // };
-
-        // let currentFunctionIndex = 0;
-        // let iterationCount = 0;
-        // const maxIterations = 100;
-        // const functionsArray = [HFfunc1, HFfunc2, HFfunc3];
-        // function executeNextFunction()
-        // {
-        //   if (iterationCount >= maxIterations) return;
-        //   functionsArray[currentFunctionIndex]();
-        //   currentFunctionIndex = (currentFunctionIndex + 1) % functionsArray.length;
-
-        //   iterationCount++;
-        //   (0, skyrimPlatform_1.printConsole)('[HoneyFactoryBot] work: ' + iterationCount);
-        // }
         var _a;
         this === null || this === void 0 ? void 0 : this.destroyText();
         const remoteServer = spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(remoteServer_1.RemoteServer);
@@ -25831,14 +25688,13 @@ class Colshape {
             return;
         }
         (0, Utils_1.sendEventToServer)(events_1.ColshapeEvents.onPlayerInteracted, this.id);
-        (0, skyrimPlatform_1.printConsole)('[ColshapeEvents::onPlayerInteracted] ID: ' + this.id); //HONEYFACTORY_WORK_1_COLLECTING_INT - сдавать мёд
-    }                                                                                              //HONEYFACTORY_WORK_0_COLLECTING_INT - собирать мёд
+    }
     drawText() {
         spApiInteraction_1.SpApiInteraction.getControllerInstance()
             .lookupListener(browserService_1.BrowserService)
             .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.Hud}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.Hud].SetInteractNotification}`, {
             show: true,
-            text: this.text.length === 0 ? 'Для взаимодействия нажмите ' : this.text,
+            text: this.text.length === 0 ? 'Для взаимодействия нажмите' : this.text,
             button: this.isInteraction
                 ? skyrimKeyCodeName_1.SkyrimKeyNames[settings_1.Settings.getValue(SettingsId_1.SettingsId.Binder_Colshape).codes[0]]
                 : '',
@@ -25892,7 +25748,7 @@ exports.Colshape = Colshape;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.ColshapesHandler = exports.botInit = exports.NPC_BASE_ID = exports.MARKER_BASE_ID = void 0;
+exports.ColshapesHandler = exports.NPC_BASE_ID = exports.MARKER_BASE_ID = void 0;
 const skyrimPlatform_1 = __webpack_require__(2112);
 const Colshape_1 = __webpack_require__(5498);
 const Binder_1 = __webpack_require__(9132);
@@ -25903,7 +25759,6 @@ const Rectangle_1 = __webpack_require__(8476);
 const spApiInteraction_1 = __webpack_require__(3331);
 const remoteServer_1 = __webpack_require__(8986);
 const Utils_1 = __webpack_require__(2453);
-exports.botInit = false;
 exports.MARKER_BASE_ID = parseInt('09003347', 16);
 exports.NPC_BASE_ID = parseInt('3901f212', 16);
 const MAX_DISTANCE = 2000;
@@ -25984,10 +25839,6 @@ class ColshapesHandler {
             .getWorldModel()
             .forms.find(v => v === null || v === void 0 ? void 0 : v.isMyClone)) === null || _a === void 0 ? void 0 : _a.playerDimension;
         return this.quadtree.query(searchArea).filter(colshape => colshape.dimension === playerDimension);
-    }
-    static isColshapeExist(colshapeId)
-    {
-      return this.storage.has(colshapeId);
     }
 }
 exports.ColshapesHandler = ColshapesHandler;
@@ -26950,8 +26801,8 @@ class BlockMenuService extends clientListener_1.ClientListener {
         this.controller = controller;
         this.blockMenus = [
             "BarterMenu",
-            //"Console",
-            //"Console Native UI Menu",
+            "Console",
+            "Console Native UI Menu",
             "ContainerMenu",
             "Crafting Menu",
             "Debug Text Menu",
@@ -27283,7 +27134,6 @@ class ConsoleCommandsService extends clientListener_1.ClientListener {
                 },
                 reliability: "reliable"
             });
-            (0, skyrimPlatform_1.printConsole)(`[ConsoleCommandsService] Executed command - ${commandName}`);
             return false;
         };
     }
@@ -28483,7 +28333,6 @@ class NetworkingService extends clientListener_1.ClientListener {
         this.controller.emitter.on('sendMessageWithRefrId', e => this.onSendMessageWithRefrId(e));
     }
     onSendMessage(e) {
-        (0, skyrimPlatform_1.printConsole)('[NetworkingService::onSendMessage] sending msg: ' + JSON.stringify(e.message) + ' e: ' + JSON.stringify(e));
         this.sp.mpClientPlugin.send(JSON.stringify(e.message), this.isReliable(e.reliability));
     }
     onSendMessageWithRefrId(e) {
@@ -29611,8 +29460,8 @@ class RemoteServer extends clientListener_1.ClientListener {
                 break;
             case serverEvents_1.ServerUtilsEvents.GameRestriction:
                 const gameRestriction = msg.content.data;
-                GameRestrictions_1.GameRestrictions.canSprint = true;//gameRestriction.CanSprint != null ? gameRestriction.CanSprint : GameRestrictions_1.GameRestrictions.canSprint;
-                GameRestrictions_1.GameRestrictions.canJump = true;//gameRestriction.CanJump != null ? gameRestriction.CanJump : GameRestrictions_1.GameRestrictions.canJump;
+                GameRestrictions_1.GameRestrictions.canSprint = gameRestriction.CanSprint != null ? gameRestriction.CanSprint : GameRestrictions_1.GameRestrictions.canSprint;
+                GameRestrictions_1.GameRestrictions.canJump = gameRestriction.CanJump != null ? gameRestriction.CanJump : GameRestrictions_1.GameRestrictions.canJump;
                 GameRestrictions_1.GameRestrictions.canCombatStage =
                     gameRestriction.CanCombatStage != null ? gameRestriction.CanCombatStage : GameRestrictions_1.GameRestrictions.canCombatStage;
                 break;
@@ -31283,6 +31132,7 @@ var AuctionEvents;
     AuctionEvents["PointRequest"] = "auction:pointRequest";
     AuctionEvents["CreateBet"] = "auction:createBet";
     AuctionEvents["CreateLot"] = "auction:createLot";
+    AuctionEvents["ToggleFavoriteLot"] = "auction:toggleFavoriteLot";
 })(AuctionEvents = exports.AuctionEvents || (exports.AuctionEvents = {}));
 
 
@@ -46098,13 +45948,21 @@ class FormView {
                     });
                 }
                 if (model.appearance && model.appearance.name) {
+                    const playerActor = skyrimPlatform_1.Game.getPlayer();
+                    const remoteServer = spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(remoteServer_1.RemoteServer);
+                    const worlds = remoteServer.getWorldModel();
+                    const playerForm = worlds.forms.find(v => (v === null || v === void 0 ? void 0 : v.refrId) === (0, worldViewMisc_1.localIdToRemoteId)(playerActor.getFormID(), true));
+                    const playerIsAdmin = playerForm === null || playerForm === void 0 ? void 0 : playerForm.playerAdminIsLogin;
                     const targetIsAdmin = model === null || model === void 0 ? void 0 : model.playerAdminIsLogin;
-                    const name = Familiars_1.FamiliarsHandler.playerKnowTarget(model === null || model === void 0 ? void 0 : model.playerPersonId) || targetIsAdmin
-                        ? model.appearance.name
-                        : model.appearance.isFemale
-                            ? 'Незнакомка'
-                            : 'Незнакомец';
-                    refr === null || refr === void 0 ? void 0 : refr.setDisplayName('' + `${name}[${model.playerDynamicId}]`, true);
+                    const targetAdminName = model === null || model === void 0 ? void 0 : model.playerAdminName;
+                    const name = targetIsAdmin && targetAdminName
+                        ? targetAdminName
+                        : Familiars_1.FamiliarsHandler.playerKnowTarget(model === null || model === void 0 ? void 0 : model.playerPersonId) || playerIsAdmin || targetIsAdmin
+                            ? model.appearance.name
+                            : model.appearance.isFemale
+                                ? 'Незнакомка'
+                                : 'Незнакомец';
+                    refr === null || refr === void 0 ? void 0 : refr.setDisplayName('' + `${name} [${model.playerDynamicId}]`, true);
                 }
                 (_h = skyrimPlatform_1.Actor.from(refr)) === null || _h === void 0 ? void 0 : _h.setActorValue('attackDamageMult', 0);
             }
@@ -46154,7 +46012,7 @@ class FormView {
         this.removeStatic();
     }
     applyAll(refr, model) {
-        var _a, _b, _c;
+        var _a, _b;
         let forcedWeapDrawn = null;
         if (!this.isSetNodeScaleApplied) {
             this.isSetNodeScaleApplied = true;
@@ -46257,13 +46115,16 @@ class FormView {
             const playerForm = worlds.forms.find(v => (v === null || v === void 0 ? void 0 : v.refrId) === (0, worldViewMisc_1.localIdToRemoteId)(playerActor.getFormID(), true));
             const playerIsAdmin = playerForm === null || playerForm === void 0 ? void 0 : playerForm.playerAdminIsLogin;
             const targetIsAdmin = model === null || model === void 0 ? void 0 : model.playerAdminIsLogin;
-            const name = Familiars_1.FamiliarsHandler.playerKnowTarget(model === null || model === void 0 ? void 0 : model.playerPersonId) || playerIsAdmin || targetIsAdmin
-                ? model.appearance.name
-                : model.appearance.isFemale
-                    ? `${model.appearance.name} Незнакомка`
-                    : `${model.appearance.name} Незнакомец`;
-            targetActor.setDisplayName(`${name}[${model.playerDynamicId}]`, true);
-            const isVisibleByPlayer = !((_c = model.movement) === null || _c === void 0 ? void 0 : _c.isSneaking) && playerActor.getDistance(refr) <= exports.MAX_NICKNAME_VISIBLE && playerActor.hasLOS(refr);
+            const targetAdminName = model === null || model === void 0 ? void 0 : model.playerAdminName;
+            const name = targetIsAdmin && targetAdminName
+                ? targetAdminName
+                : Familiars_1.FamiliarsHandler.playerKnowTarget(model === null || model === void 0 ? void 0 : model.playerPersonId) || playerIsAdmin || targetIsAdmin
+                    ? model.appearance.name
+                    : model.appearance.isFemale
+                        ? 'Незнакомка'
+                        : 'Незнакомец';
+            targetActor.setDisplayName(`${name} [${model.playerDynamicId}]`, true);
+            const isVisibleByPlayer = playerActor.getDistance(refr) <= exports.MAX_NICKNAME_VISIBLE && playerActor.hasLOS(refr);
             if (isVisibleByPlayer) {
                 const headScreenPos = (0, skyrimPlatform_1.worldPointToScreenPoint)([
                     skyrimPlatform_1.NetImmerse.getNodeWorldPositionX(refr, headPart, false),
@@ -46318,7 +46179,7 @@ class FormView {
                         this.textNameId = (0, skyrimPlatform_1.createText)(textXPos, textYPos + nickNamePosYOffset * size, `${model.appearance.name}`, [255, 255, 255, 1]);
                     }
                     else {
-                        this.textNameId = (0, skyrimPlatform_1.createText)(textXPos, textYPos + nickNamePosYOffset * size, `${name}[${model.playerDynamicId}]`, [255, 255, 255, 1]);
+                        this.textNameId = (0, skyrimPlatform_1.createText)(textXPos, textYPos + nickNamePosYOffset * size, `${name} [${model.playerDynamicId}]`, [255, 255, 255, 1]);
                     }
                     (0, skyrimPlatform_1.setTextSize)(this.textNameId, size);
                 }
@@ -46328,7 +46189,7 @@ class FormView {
                         (0, skyrimPlatform_1.setTextString)(this.textNameId, `${model.appearance.name}`);
                     }
                     else {
-                        (0, skyrimPlatform_1.setTextString)(this.textNameId, `${name}[${model.playerDynamicId}]`);
+                        (0, skyrimPlatform_1.setTextString)(this.textNameId, `${name} [${model.playerDynamicId}]`);
                     }
                     (0, skyrimPlatform_1.setTextSize)(this.textNameId, size);
                 }
@@ -46919,41 +46780,41 @@ exports.getObjectReference = getObjectReference;
 
 /***/ })
 
-/******/  });
+/******/ 	});
 /************************************************************************/
-/******/  // The module cache
-/******/  var __webpack_module_cache__ = {};
-/******/  
-/******/  // The require function
-/******/  function __webpack_require__(moduleId) {
-/******/    // Check if module is in cache
-/******/    var cachedModule = __webpack_module_cache__[moduleId];
-/******/    if (cachedModule !== undefined) {
-/******/      return cachedModule.exports;
-/******/    }
-/******/    // Create a new module (and put it into the cache)
-/******/    var module = __webpack_module_cache__[moduleId] = {
-/******/      // no module.id needed
-/******/      // no module.loaded needed
-/******/      exports: {}
-/******/    };
-/******/  
-/******/    // Execute the module function
-/******/    __webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
-/******/  
-/******/    // Return the exports of the module
-/******/    return module.exports;
-/******/  }
-/******/  
+/******/ 	// The module cache
+/******/ 	var __webpack_module_cache__ = {};
+/******/ 	
+/******/ 	// The require function
+/******/ 	function __webpack_require__(moduleId) {
+/******/ 		// Check if module is in cache
+/******/ 		var cachedModule = __webpack_module_cache__[moduleId];
+/******/ 		if (cachedModule !== undefined) {
+/******/ 			return cachedModule.exports;
+/******/ 		}
+/******/ 		// Create a new module (and put it into the cache)
+/******/ 		var module = __webpack_module_cache__[moduleId] = {
+/******/ 			// no module.id needed
+/******/ 			// no module.loaded needed
+/******/ 			exports: {}
+/******/ 		};
+/******/ 	
+/******/ 		// Execute the module function
+/******/ 		__webpack_modules__[moduleId].call(module.exports, module, module.exports, __webpack_require__);
+/******/ 	
+/******/ 		// Return the exports of the module
+/******/ 		return module.exports;
+/******/ 	}
+/******/ 	
 /************************************************************************/
-/******/  
-/******/  // startup
-/******/  // Load entry module and return exports
-/******/  // This entry module is referenced by other modules so it can't be inlined
-/******/  var __webpack_exports__ = __webpack_require__(3607);
-/******/  var __webpack_export_target__ = exports;
-/******/  for(var i in __webpack_exports__) __webpack_export_target__[i] = __webpack_exports__[i];
-/******/  if(__webpack_exports__.__esModule) Object.defineProperty(__webpack_export_target__, "__esModule", { value: true });
-/******/  
+/******/ 	
+/******/ 	// startup
+/******/ 	// Load entry module and return exports
+/******/ 	// This entry module is referenced by other modules so it can't be inlined
+/******/ 	var __webpack_exports__ = __webpack_require__(3607);
+/******/ 	var __webpack_export_target__ = exports;
+/******/ 	for(var i in __webpack_exports__) __webpack_export_target__[i] = __webpack_exports__[i];
+/******/ 	if(__webpack_exports__.__esModule) Object.defineProperty(__webpack_export_target__, "__esModule", { value: true });
+/******/ 	
 /******/ })()
 ;
