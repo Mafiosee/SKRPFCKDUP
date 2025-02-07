@@ -29770,7 +29770,7 @@ const networking = __webpack_require__(3054);
 const animation_1 = __webpack_require__(933);
 const clientListener_1 = __webpack_require__(2166);
 (0, skyrimPlatform_1.printConsole)('Skyrim RolePlay');
-const targetIp = "80.66.82.14";
+const targetIp = "26.72.161.60";
 const targetPort = parseInt("7777", 10);
 const serverPassword = "JrWwr4IwV92BfxD6Nx5EVrj8OHyxYFV0g6euMoxgAXgfvoj6sT";
 const getServerIp = () => {
