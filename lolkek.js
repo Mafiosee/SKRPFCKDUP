@@ -491,12 +491,16 @@ const magicSyncService_1 = __webpack_require__(7332);
 const healthArmorBarService_1 = __webpack_require__(9153);
 const blockMenuService_1 = __webpack_require__(8622);
 const Utils_1 = __webpack_require__(2453);
+const Player_1 = __webpack_require__(5456);
 (0, skyrimPlatform_1.on)('update', (0, Utils_1.profile)(() => {
     skyrimPlatform_1.Game.setGameSettingInt('iDeathDropWeaponChance', 0);
     skyrimPlatform_1.Utility.setINIBool('bAlwaysActive:General', true);
     skyrimPlatform_1.Utility.setINIInt('iDifficulty:GamePlay', 5);
     skyrimPlatform_1.Utility.setINIFloat('fAutoVanityModeDelay:Camera', 72000.0);
     skyrimPlatform_1.Game.setGameSettingFloat('fFallLegDamageMult', 0);
+    Player_1.localPlayer.actor.setActorValue('healrate', 0);
+    Player_1.localPlayer.actor.setActorValue('combathealthregenmult', 0);
+    sp.Debug.setGodMode(true);
 }, 'Index'));
 (0, skyrimPlatform_1.on)('cameraStateChanged', (e) => {
     if (e.newStateId !== 0) {
@@ -727,37 +731,48 @@ class AnimationsHandler {
         }, 0x14, 0x14);
     }
     static play(animationHash, isBlockedAnim = false) {
-        (0, skyrimPlatform_1.once)('update', () => {
+        (0, skyrimPlatform_1.once)('update', () => __awaiter(this, void 0, void 0, function* () {
             if (Player_1.localPlayer.actor.isSwimming()) {
                 return;
             }
-            skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, 'Unequip');
-            skyrimPlatform_1.Utility.wait(0.4).then(() => {
-                skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, 'IdleSleepNod');
-                skyrimPlatform_1.Utility.wait(0.2).then(() => {
-                    skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, 'IdleForceDefaultState');
-                    skyrimPlatform_1.Utility.wait(0.2).then(() => {
-                        skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, animationHash);
-                        this.activeAnimations = animationHash;
-                        this.animationsIsBlock = isBlockedAnim;
-                    });
-                });
-            });
-        });
+            if (Player_1.localPlayer.actor.isWeaponDrawn()) {
+                skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, 'Unequip');
+            }
+            yield this.waitWeaponDraw();
+            yield skyrimPlatform_1.Utility.wait(0.2);
+            skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, 'IdleSleepNod');
+            yield skyrimPlatform_1.Utility.wait(0.2);
+            skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, 'IdleForceDefaultState');
+            yield skyrimPlatform_1.Utility.wait(0.2);
+            skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, animationHash);
+            this.activeAnimations = animationHash;
+            this.animationsIsBlock = isBlockedAnim;
+        }));
     }
     static stop() {
         return __awaiter(this, void 0, void 0, function* () {
-            (0, skyrimPlatform_1.once)('update', () => {
+            (0, skyrimPlatform_1.once)('update', () => __awaiter(this, void 0, void 0, function* () {
                 if (Player_1.localPlayer.actor.isSwimming()) {
                     return;
                 }
-                this.animationsIsBlock = false;
                 skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, 'IdleSleepNod');
-                skyrimPlatform_1.Utility.wait(0.2).then(() => {
-                    skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, 'IdleForceDefaultState');
-                    this.activeAnimations = null;
-                });
-            });
+                yield skyrimPlatform_1.Utility.wait(0.2);
+                skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, 'IdleForceDefaultState');
+                this.activeAnimations = null;
+            }));
+        });
+    }
+    static waitWeaponDraw() {
+        return __awaiter(this, void 0, void 0, function* () {
+            return new Promise((resolve) => __awaiter(this, void 0, void 0, function* () {
+                while (true) {
+                    yield skyrimPlatform_1.Utility.wait(0.01);
+                    if (!Player_1.localPlayer.actor.isWeaponDrawn() && !Player_1.localPlayer.actor.getAnimationVariableBool('IsUnequipping')) {
+                        resolve();
+                        break;
+                    }
+                }
+            }));
         });
     }
 }
@@ -792,8 +807,10 @@ class ArmorShop {
     static init() {
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.ArmorStoreEvents.Close).addHandler(this.closeInterface.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.ArmorStoreEvents.SetActiveProduct).addHandler(this.equipProduct.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.ArmorStoreEvents.ChangeCategory).addHandler(this.changeScene.bind(this));
     }
     static playerOpenedShop(armorShopDto) {
+        this.playerInShop = true;
         this.cameraManager = CameraManager_1.CameraManager.create(CameraConfig_1.ArmorShopCameraConfig, CameraConfig_1.ArmorShopCameraConfigScenes);
         this.initCamera();
         this.unequipAll();
@@ -814,13 +831,19 @@ class ArmorShop {
             .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.Show}`, null, true);
     }
     static equipProduct(data) {
+        if (!this.playerInShop) {
+            return;
+        }
         (0, skyrimPlatform_1.once)('update', () => {
-            this.unequipAll();
+            Player_1.localPlayer.actor.unequipAll();
             if (!data.productId) {
                 return;
             }
             const itemConfig = Items_1.default.get(data.productId);
-            if (itemConfig.type !== itemType_1.ItemType.Armor) {
+            if (!itemConfig) {
+                return;
+            }
+            if (itemConfig.type !== itemType_1.ItemType.Armor && itemConfig.type !== itemType_1.ItemType.Clothes && itemConfig.type !== itemType_1.ItemType.Backpack) {
                 return;
             }
             const armorItem = skyrimPlatform_1.Armor.from(skyrimPlatform_1.Game.getFormEx(parseInt(itemConfig.itemId, 16)));
@@ -830,11 +853,15 @@ class ArmorShop {
             Player_1.localPlayer.actor.equipItem(armorItem, false, false);
         });
     }
-    static changeScene(sceneId) {
+    static changeScene(data) {
         var _a;
-        (_a = this.cameraManager) === null || _a === void 0 ? void 0 : _a.changeScene(sceneId);
+        if (data.categoryId == null) {
+            return;
+        }
+        (_a = this.cameraManager) === null || _a === void 0 ? void 0 : _a.changeScene(data.categoryId);
     }
     static closeInterface() {
+        this.playerInShop = false;
         this.destroyCamera();
         spApiInteraction_1.SpApiInteraction.getControllerInstance()
             .lookupListener(browserService_1.BrowserService)
@@ -865,6 +892,7 @@ class ArmorShop {
 exports.ArmorShop = ArmorShop;
 ArmorShop.InterfaceName = InterfacesName_1.BrowserInterfacesName.ArmorStore;
 ArmorShop.InterfaceFunction = FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.ArmorStore];
+ArmorShop.playerInShop = false;
 
 
 /***/ }),
@@ -884,54 +912,162 @@ exports.ArmorShopCameraConfig = {
     moveSpeed: 3.0,
 };
 exports.ArmorShopCameraConfigScenes = {
-    [itemType_1.ItemType.Armor]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
+    [itemType_1.CharSlots.Amulet]: {
+        position: new Vector3_1.Vector3(0, -150, -30),
+        direction: new Vector3_1.Vector3(0, -10, 0),
     },
-    [itemType_1.ItemType.Weapon]: {
-        position: new Vector3_1.Vector3(0, -100, 0),
-        direction: new Vector3_1.Vector3(0, -10, -1),
+    [itemType_1.CharSlots.Backpack]: {
+        position: new Vector3_1.Vector3(0, -150, -30),
+        direction: new Vector3_1.Vector3(0, -10, 0),
     },
-    [itemType_1.ItemType.Backpack]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
+    [itemType_1.CharSlots.Bracers]: {
+        position: new Vector3_1.Vector3(0, -150, -30),
+        direction: new Vector3_1.Vector3(0, -10, 0),
     },
-    [itemType_1.ItemType.Potions]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
+    [itemType_1.CharSlots.FirstHand]: {
+        position: new Vector3_1.Vector3(0, -150, -30),
+        direction: new Vector3_1.Vector3(0, -10, 0),
     },
-    [itemType_1.ItemType.Manuscripts]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
+    [itemType_1.CharSlots.Headdress]: {
+        position: new Vector3_1.Vector3(0, 0, 10),
+        direction: new Vector3_1.Vector3(0, -20, 0),
     },
-    [itemType_1.ItemType.Food]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
+    [itemType_1.CharSlots.Outerwear]: {
+        position: new Vector3_1.Vector3(0, -150, -30),
+        direction: new Vector3_1.Vector3(0, -10, 0),
     },
-    [itemType_1.ItemType.Drinks]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
+    [itemType_1.CharSlots.Ring]: {
+        position: new Vector3_1.Vector3(0, -150, -30),
+        direction: new Vector3_1.Vector3(0, -10, 0),
     },
-    [itemType_1.ItemType.Ingredients]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
+    [itemType_1.CharSlots.SecondHand]: {
+        position: new Vector3_1.Vector3(0, -150, -30),
+        direction: new Vector3_1.Vector3(0, -10, 0),
     },
-    [itemType_1.ItemType.Resources]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
+    [itemType_1.CharSlots.Shoes]: {
+        position: new Vector3_1.Vector3(0, -100, -100),
+        direction: new Vector3_1.Vector3(0, -50, 0),
     },
-    [itemType_1.ItemType.Other]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
-    },
-    [itemType_1.ItemType.Accessories]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
-    },
-    [itemType_1.ItemType.Clothes]: {
-        position: new Vector3_1.Vector3(0, -20, -20),
-        direction: new Vector3_1.Vector3(0, -10, -2),
-    },
+};
+
+
+/***/ }),
+
+/***/ 5214:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BarberShop = void 0;
+const skyrimPlatform_1 = __webpack_require__(2112);
+const FunctionName_1 = __webpack_require__(9865);
+const InterfacesName_1 = __webpack_require__(3638);
+const BrowserEventsHandler_1 = __webpack_require__(3551);
+const Player_1 = __webpack_require__(5456);
+const Utils_1 = __webpack_require__(2453);
+const browserService_1 = __webpack_require__(5472);
+const spApiInteraction_1 = __webpack_require__(3331);
+const CameraManager_1 = __webpack_require__(4633);
+const CameraConfig_1 = __webpack_require__(7365);
+const events_1 = __webpack_require__(515);
+const appearanceSync_1 = __webpack_require__(282);
+class BarberShop {
+    static init() {
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.BarbershopEvents.Close).addHandler(this.closeInterface.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.BarbershopEvents.SetActiveProduct).addHandler(this.equipProduct.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.BarbershopEvents.SetActiveColor).addHandler(this.setColor.bind(this));
+    }
+    static playerOpenedShop(barberShopDTO) {
+        this.cameraManager = CameraManager_1.CameraManager.create(CameraConfig_1.BarberShopCameraConfig, CameraConfig_1.BarberShopCameraConfigScenes);
+        this.initCamera();
+        this.unequipHead();
+        spApiInteraction_1.SpApiInteraction.getControllerInstance()
+            .lookupListener(browserService_1.BrowserService)
+            .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.SetBalance}`, { value: barberShopDTO.money });
+        spApiInteraction_1.SpApiInteraction.getControllerInstance()
+            .lookupListener(browserService_1.BrowserService)
+            .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.SetStoreName}`, barberShopDTO.name);
+        spApiInteraction_1.SpApiInteraction.getControllerInstance()
+            .lookupListener(browserService_1.BrowserService)
+            .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.SetProducts}`, barberShopDTO.products);
+        spApiInteraction_1.SpApiInteraction.getControllerInstance()
+            .lookupListener(browserService_1.BrowserService)
+            .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.SetColors}`, barberShopDTO.colors);
+        spApiInteraction_1.SpApiInteraction.getControllerInstance()
+            .lookupListener(browserService_1.BrowserService)
+            .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.Show}`, null, true);
+    }
+    static equipProduct(data) {
+        (0, skyrimPlatform_1.once)('update', () => {
+            appearanceSync_1.AppearanceSync.applyHeadPartToPlayer(data.productId);
+            Player_1.localPlayer.actor.queueNiNodeUpdate();
+        });
+    }
+    static setColor(data) {
+        (0, skyrimPlatform_1.once)('update', () => {
+            skyrimPlatform_1.TESModPlatform.setNpcHairColor(Player_1.localPlayer.baseActor, data.colorId);
+            Player_1.localPlayer.actor.queueNiNodeUpdate();
+        });
+    }
+    static changeScene(sceneId) {
+        var _a;
+        (_a = this.cameraManager) === null || _a === void 0 ? void 0 : _a.changeScene(sceneId);
+    }
+    static closeInterface() {
+        this.destroyCamera();
+        spApiInteraction_1.SpApiInteraction.getControllerInstance()
+            .lookupListener(browserService_1.BrowserService)
+            .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.Hide}`, null, false);
+        (0, Utils_1.sendEventToServer)(events_1.BarbershopEvents.Close);
+    }
+    static initCamera() {
+        (0, skyrimPlatform_1.once)('update', () => {
+            var _a;
+            (_a = this.cameraManager) === null || _a === void 0 ? void 0 : _a.init();
+            (0, Utils_1.freezePlayer)(true);
+        });
+    }
+    static destroyCamera() {
+        (0, skyrimPlatform_1.once)('update', () => {
+            var _a;
+            (_a = this.cameraManager) === null || _a === void 0 ? void 0 : _a.destroy();
+            (0, Utils_1.freezePlayer)(false);
+            skyrimPlatform_1.Game.forceFirstPerson();
+        });
+    }
+    static unequipHead() {
+        (0, skyrimPlatform_1.once)('update', () => {
+            const form = Player_1.localPlayer.actor.getWornForm(0x00000002);
+            Player_1.localPlayer.actor.unequipItem(form, false, true);
+        });
+    }
+}
+exports.BarberShop = BarberShop;
+BarberShop.InterfaceName = InterfacesName_1.BrowserInterfacesName.BarberShop;
+BarberShop.InterfaceFunction = FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.BarberShop];
+
+
+/***/ }),
+
+/***/ 7365:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BarberShopCameraConfigScenes = exports.BarberShopCameraConfig = void 0;
+const Vector3_1 = __webpack_require__(2233);
+exports.BarberShopCameraConfig = {
+    yawSpeed: 1.0,
+    pitchSpeed: 1.0,
+    moveSpeed: 3.0,
+};
+exports.BarberShopCameraConfigScenes = {
+    "init": {
+        position: new Vector3_1.Vector3(0, 0, 10),
+        direction: new Vector3_1.Vector3(0, -20, -30),
+    }
 };
 
 
@@ -1070,7 +1206,6 @@ const InterfacesName_1 = __webpack_require__(3638);
 const FunctionName_1 = __webpack_require__(9865);
 const Binder_1 = __webpack_require__(9132);
 const Hud_1 = __webpack_require__(9720);
-const config_1 = __webpack_require__(6702);
 const actorvalues_1 = __webpack_require__(9714);
 const browserService_1 = __webpack_require__(5472);
 const spApiInteraction_1 = __webpack_require__(3331);
@@ -1095,9 +1230,6 @@ class HealthControlHandler {
     }
     static checkClientPlayerHealth(serverHealth) {
         (0, skyrimPlatform_1.once)('update', () => {
-            Player_1.localPlayer.actor.setActorValue('healrate', 0);
-            Player_1.localPlayer.actor.setActorValue('combathealthregenmult', 0);
-            skyrimPlatform_1.Debug.setGodMode(true);
             const clientHealth = Player_1.localPlayer.actor.getActorValue('health');
             if (clientHealth !== serverHealth && serverHealth > 0) {
                 (0, actorvalues_1.setActorValuePercentage)(Player_1.localPlayer.actor, 'health', serverHealth / 100);
@@ -1110,18 +1242,21 @@ class HealthControlHandler {
             }
         });
     }
-    static startDeathStageForPlayer() {
+    static startDeathStageForPlayer(deathData) {
         (0, skyrimPlatform_1.once)('update', () => {
             Binder_1.Binder.isDisable = true;
             Hud_1.Hud.close();
             spApiInteraction_1.SpApiInteraction.getControllerInstance()
                 .lookupListener(browserService_1.BrowserService)
-                .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.DeathScreen}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.DeathScreen].SetSeconds}`, {
-                value: config_1.TIME_STAGE_OF_DEATH,
+                .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.DeathScreen}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.DeathScreen].SetSecondsLeft}`, {
+                value: deathData.secondsToDeath,
             });
             spApiInteraction_1.SpApiInteraction.getControllerInstance()
                 .lookupListener(browserService_1.BrowserService)
-                .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.DeathScreen}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.DeathScreen].SetShowWaitBtn}`, true);
+                .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.DeathScreen}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.DeathScreen].SetEnabledDieButton}`, false);
+            spApiInteraction_1.SpApiInteraction.getControllerInstance()
+                .lookupListener(browserService_1.BrowserService)
+                .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.DeathScreen}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.DeathScreen].SetInfo}`, deathData.info);
             spApiInteraction_1.SpApiInteraction.getControllerInstance()
                 .lookupListener(browserService_1.BrowserService)
                 .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.DeathScreen}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.DeathScreen].Show}`, null, true);
@@ -1240,7 +1375,6 @@ class PickupItem {
         (0, Utils_1.sendEventToServer)(events_1.PickupItemEvents.PickItem, this.targetItemId);
     }
     static openInterface(itemHash, amount, position) {
-        (0, skyrimPlatform_1.printConsole)(`Open Interface: ${position.x} ${position.y}`);
         spApiInteraction_1.SpApiInteraction.getControllerInstance()
             .lookupListener(browserService_1.BrowserService)
             .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunctions.SetItemHash}`, itemHash);
@@ -1315,47 +1449,54 @@ const GameRestrictions_1 = __webpack_require__(3352);
 const spApiInteraction_1 = __webpack_require__(3331);
 const launcherService_1 = __webpack_require__(2041);
 const browserService_1 = __webpack_require__(5472);
+const remoteServer_1 = __webpack_require__(8986);
 const COOLDOWN_TIME_FOR_JUMP = 1.5 * 1000;
 const needCheck = "true" === 'true';
+const DODGE_ANIM_LIST = ['TKDodgeBack', 'TKDodgeForward', 'TKDodgeLeft', 'TKDodgeRight'];
 class StaminaHudState {
     static initHook() {
         skyrimPlatform_1.hooks.sendAnimationEvent.add({
             enter: ctx => {
+                if (DODGE_ANIM_LIST.includes(ctx.animEventName)) {
+                    this.reduceStamina(PersonModules_1.REQUIRED_STAMINA_FOR_DODGE);
+                }
                 if (ctx.animEventName === 'JumpStandingStart' || ctx.animEventName === 'JumpDirectionalStart') {
                     if (Date.now() - this.lastJumpCheckTime < COOLDOWN_TIME_FOR_JUMP || !this.canJump || !GameRestrictions_1.GameRestrictions.canJump) {
                         ctx.animEventName = '';
                         return;
                     }
                 }
+                if (ctx.animEventName === 'SprintStart' && !this.canSprint) {
+                    ctx.animEventName = '';
+                    return;
+                }
             },
             leave: ctx => { },
         }, 0x14, 0x14);
     }
-    static setStamin(value) {
-        (0, skyrimPlatform_1.once)('update', () => {
-            Player_1.localPlayer.actor.setActorValue('stamina', value);
-            const playerStamina = Player_1.localPlayer.actor.getActorValue('stamina');
-            spApiInteraction_1.SpApiInteraction.getControllerInstance()
-                .lookupListener(browserService_1.BrowserService)
-                .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.Hud}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.Hud].SetUserStamina}`, {
-                maxStamina: PersonModules_1.MAXIMUM_PLAYER_STAMIN,
-                currentStamina: playerStamina,
-            });
-        });
-    }
     static update() {
         (0, skyrimPlatform_1.on)('update', (0, Utils_1.profile)(() => {
+            const remoteServer = spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(remoteServer_1.RemoteServer);
+            const worlds = remoteServer.getWorldModel();
+            const form = worlds.forms.find(v => v === null || v === void 0 ? void 0 : v.isMyClone);
+            const currentStamina = form === null || form === void 0 ? void 0 : form.playerStamina;
+            const maxStamina = form === null || form === void 0 ? void 0 : form.playerMaxStamina;
             this.simpleCheckSpeedHack();
             this.isJumping = !!Player_1.localPlayer.actor.getAnimationVariableBool('bInJumpState');
             this.isSprinting = !!Player_1.localPlayer.actor.isSprinting();
+            this.isAttack = !!Player_1.localPlayer.actor.getAnimationVariableBool('IsAttacking');
             this.checkRemoveStamin();
+            this.canSprint = currentStamina >= PersonModules_1.REQUIRED_STAMINA_FOR_SPRINT_PER_SECOND;
             Player_1.localPlayer.actor.setAnimationVariableBool('bSprintOK', Player_1.localPlayer.actor.getActorValue('stamina') >= PersonModules_1.REQUIRED_STAMINA_FOR_SPRINT_PER_SECOND);
-            if (Player_1.localPlayer.actor.getActorValue('stamina') < PersonModules_1.REQUIRED_STAMINA_FOR_JUMP) {
-                this.canJump = false;
-            }
-            else {
-                this.canJump = true;
-            }
+            this.canJump = currentStamina >= PersonModules_1.REQUIRED_STAMINA_FOR_JUMP;
+            this.displayStamin = this.lerp(currentStamina, this.displayStamin);
+            spApiInteraction_1.SpApiInteraction.getControllerInstance()
+                .lookupListener(browserService_1.BrowserService)
+                .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.Hud}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.Hud].SetUserStamina}`, {
+                maxStamina: maxStamina,
+                currentStamina: this.displayStamin,
+            });
+            Player_1.localPlayer.actor.setActorValue('stamina', currentStamina);
         }, 'StaminaHudState'));
     }
     static reduceStamina(value) {
@@ -1363,8 +1504,12 @@ class StaminaHudState {
     }
     static checkRemoveStamin() {
         const currentTime = Date.now();
-        if (this.isAttack) {
+        if (this.lastIsAttack !== this.isAttack && this.isAttack) {
+            this.lastIsAttack = this.isAttack;
             this.reduceStamina(PersonModules_1.REQUIRED_STAMIN_FOR_ATTACK);
+        }
+        else {
+            this.lastIsAttack = this.isAttack;
         }
         if (this.lastIsJumping !== this.isJumping && this.isJumping) {
             this.lastIsJumping = this.isJumping;
@@ -1385,14 +1530,21 @@ class StaminaHudState {
             spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(launcherService_1.LauncherService).quitFromGame('Speed hack');
         }
     }
+    static lerp(lastStamina, currentStamina) {
+        const lerpFactor = 0.01;
+        return lastStamina + (currentStamina - lastStamina) * lerpFactor;
+    }
 }
 exports.StaminaHudState = StaminaHudState;
+StaminaHudState.lastIsAttack = false;
 StaminaHudState.isAttack = false;
 StaminaHudState.lastIsJumping = false;
 StaminaHudState.isJumping = false;
 StaminaHudState.canJump = true;
+StaminaHudState.canSprint = true;
 StaminaHudState.lastJumpCheckTime = Date.now();
 StaminaHudState.lastSprintCheckTime = Date.now();
+StaminaHudState.displayStamin = 100;
 
 
 /***/ }),
@@ -1528,88 +1680,6 @@ VoiceChat.isVoiceActive = false;
 
 /***/ }),
 
-/***/ 7683:
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.WeaponShop = void 0;
-const skyrimPlatform_1 = __webpack_require__(2112);
-const events_1 = __webpack_require__(911);
-const FunctionName_1 = __webpack_require__(9865);
-const InterfacesName_1 = __webpack_require__(3638);
-const BrowserEventsHandler_1 = __webpack_require__(3551);
-const Player_1 = __webpack_require__(5456);
-const Utils_1 = __webpack_require__(2453);
-const Items_1 = __webpack_require__(7187);
-const itemType_1 = __webpack_require__(4405);
-const browserService_1 = __webpack_require__(5472);
-const spApiInteraction_1 = __webpack_require__(3331);
-class WeaponShop {
-    static init() {
-        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.ArmorStoreEvents.Close).addHandler(this.closeInterface.bind(this));
-        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.ArmorStoreEvents.SetActiveProduct).addHandler(this.equipProduct.bind(this));
-    }
-    static playerOpenedShop(weaponShopDto) {
-        var _a;
-        this.initCamera();
-        this.unequipAll();
-        spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(browserService_1.BrowserService).executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.SetBalance}`, (_a = weaponShopDto.money) !== null && _a !== void 0 ? _a : 0);
-        spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(browserService_1.BrowserService).executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.SetStoreName}`, weaponShopDto.name);
-        spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(browserService_1.BrowserService).executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.SetProducts}`, weaponShopDto.products);
-        spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(browserService_1.BrowserService).executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.Show}`, null, true);
-    }
-    static equipProduct(data) {
-        (0, skyrimPlatform_1.once)('update', () => {
-            this.unequipAll();
-            if (!data.productId) {
-                return;
-            }
-            const itemConfig = Items_1.default.get(data.productId);
-            if (itemConfig.type !== itemType_1.ItemType.Weapon) {
-                return;
-            }
-            const weaponItem = skyrimPlatform_1.Weapon.from(skyrimPlatform_1.Game.getFormEx(parseInt(itemConfig.itemId, 16)));
-            if (!weaponItem) {
-                return;
-            }
-            Player_1.localPlayer.actor.equipItem(weaponItem, false, false);
-        });
-    }
-    static closeInterface() {
-        this.destroyCamera();
-        spApiInteraction_1.SpApiInteraction.getControllerInstance()
-            .lookupListener(browserService_1.BrowserService)
-            .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.Hide}`, null, false);
-        (0, Utils_1.sendEventToServer)(events_1.ArmorStoreEvents.Close);
-    }
-    static initCamera() {
-        (0, skyrimPlatform_1.once)('update', () => {
-            skyrimPlatform_1.Game.showRaceMenu();
-            (0, Utils_1.freezePlayer)(true);
-        });
-    }
-    static destroyCamera() {
-        (0, skyrimPlatform_1.once)('update', () => {
-            skyrimPlatform_1.Ui.invokeString('HUD Menu', '_global.skse.CloseMenu', "RaceSex Menu");
-            (0, Utils_1.freezePlayer)(false);
-            skyrimPlatform_1.Game.forceFirstPerson();
-        });
-    }
-    static unequipAll() {
-        (0, skyrimPlatform_1.once)('update', () => {
-            Player_1.localPlayer.actor.unequipAll();
-        });
-    }
-}
-exports.WeaponShop = WeaponShop;
-WeaponShop.InterfaceName = InterfacesName_1.BrowserInterfacesName.ArmorStore;
-WeaponShop.InterfaceFunction = FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.ArmorStore];
-
-
-/***/ }),
-
 /***/ 7442:
 /***/ (function(__unused_webpack_module, exports, __webpack_require__) {
 
@@ -1643,8 +1713,6 @@ const browserService_1 = __webpack_require__(5472);
 const spApiInteraction_1 = __webpack_require__(3331);
 const AnimationsHandler_1 = __webpack_require__(3947);
 const MAX_FAVORITES_SLOTS = 6;
-const animationsStartFightingStance = 'WeapEquip';
-const animationsStopFightingStance = 'Unequip';
 class AnimationsMenu {
     static init() {
         Binder_1.Binder.bindRelease(binder_1.BinderHash.AnimationMenu, this.openAnimationMenu.bind(this));
@@ -1658,7 +1726,6 @@ class AnimationsMenu {
         });
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_2.RadialMenuEvents.Select).addHandler(this.selectAnimation.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_2.RadialMenuEvents.Close).addHandler(this.closeRadialMenu.bind(this));
-        this.initHook();
         this.canPlayAnimationCondition();
     }
     static setFavoritesAnimation(favoritesAnimation) {
@@ -1776,31 +1843,8 @@ class AnimationsMenu {
                     !Player_1.localPlayer.actor.isRunning() &&
                     !Player_1.localPlayer.actor.isSprinting() &&
                     !Player_1.localPlayer.actor.isSneaking() &&
-                    !Player_1.localPlayer.actor.isSwimming() &&
-                    !this.inBattleStage;
+                    !Player_1.localPlayer.actor.isSwimming();
         }, 'AnimationsMenu'));
-    }
-    static initHook() {
-        skyrimPlatform_1.hooks.sendAnimationEvent.add({
-            enter: ctx => {
-                var _a;
-                if (ctx.animEventName === undefined) {
-                    return;
-                }
-                if (((_a = ctx.animEventName) === null || _a === void 0 ? void 0 : _a.toLowerCase()) === (animationsStartFightingStance === null || animationsStartFightingStance === void 0 ? void 0 : animationsStartFightingStance.toLowerCase())) {
-                    this.inBattleStage = true;
-                }
-            },
-            leave: ctx => {
-                var _a;
-                if (ctx.animEventName === undefined) {
-                    return;
-                }
-                if (((_a = ctx.animEventName) === null || _a === void 0 ? void 0 : _a.toLowerCase()) === (animationsStopFightingStance === null || animationsStopFightingStance === void 0 ? void 0 : animationsStopFightingStance.toLowerCase())) {
-                    this.inBattleStage = false;
-                }
-            },
-        }, 0x14, 0x14);
     }
 }
 exports.AnimationsMenu = AnimationsMenu;
@@ -2040,20 +2084,29 @@ const events_27 = __webpack_require__(558);
 const events_28 = __webpack_require__(5263);
 const events_29 = __webpack_require__(3405);
 const events_30 = __webpack_require__(3858);
+const events_31 = __webpack_require__(8083);
+const events_32 = __webpack_require__(515);
+const events_33 = __webpack_require__(9998);
 class BrowserEventsServer {
     static initEvents() {
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.BlacksmithEvents.Close).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.BlacksmithEvents.ChooseRecipe).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.BlacksmithEvents.Cancel).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.AlchemyTableEvents.Close).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.AlchemyTableEvents.ChooseRecipe).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.AlchemyTableEvents.Cancel).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.EnchantTableEvents.Close).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.EnchantTableEvents.ChooseRecipe).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.EnchantTableEvents.Cancel).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.TanningEvents.Close).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.TanningEvents.ChooseRecipe).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.TanningEvents.Cancel).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.WorkbenchEvents.Close).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.WorkbenchEvents.ChooseRecipe).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.WorkbenchEvents.Cancel).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.CookingEvents.Close).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.CookingEvents.ChooseRecipe).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.CookingEvents.Cancel).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_22.CraftStatusEvents.Cancel).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_22.CraftStatusEvents.Confirm).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_22.CraftStatusEvents.Finish).addHandler(this.sendEventToServer.bind(this));
@@ -2064,9 +2117,9 @@ class BrowserEventsServer {
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_4.FishingGameEvents.Fail).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_5.SellResourceEvents.Cancel).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_5.SellResourceEvents.Sell).addHandler(this.sendEventToServer.bind(this));
-        BrowserEventsHandler_1.BrowserEventsHandler.get(events_4.ChooseWorkTypeEvents.Start).addHandler(this.sendEventToServer.bind(this));
-        BrowserEventsHandler_1.BrowserEventsHandler.get(events_4.ChooseWorkTypeEvents.Dismiss).addHandler(this.sendEventToServer.bind(this));
-        BrowserEventsHandler_1.BrowserEventsHandler.get(events_4.ChooseWorkTypeEvents.Close).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_33.ChooseWorkTypeEvents.Start).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_33.ChooseWorkTypeEvents.Dismiss).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_33.ChooseWorkTypeEvents.Close).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_4.SawmillGameEvents.Win).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_4.SawmillGameEvents.Loose).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_4.HoneyFactoryEvents.Win).addHandler(this.sendEventToServer.bind(this));
@@ -2088,6 +2141,7 @@ class BrowserEventsServer {
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_7.TradeEvents.Accept).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_7.TradeEvents.Cancel).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_21.ArmorStoreEvents.BuyProduct).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_21.ArmorStoreEvents.Close).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_8.FractionEvents.AdClick).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_8.FractionEvents.AddNews).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_8.FractionEvents.Close).addHandler(this.sendEventToServer.bind(this));
@@ -2133,6 +2187,7 @@ class BrowserEventsServer {
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_19.BankEvents.PayRentHouse).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_19.BankEvents.PayRentBusiness).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_19.BankEvents.WithdrawFaction).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_19.BankEvents.ReplenishFaction).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_19.BankEvents.BusinessReplenish).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_19.BankEvents.BusinessWithdraw).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_20.TradingTavernEvents.Buy).addHandler(this.sendEventToServer.bind(this));
@@ -2155,6 +2210,7 @@ class BrowserEventsServer {
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_24.AdminPanelEvents.ClickTicketSecondaryButton).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_24.AdminPanelEvents.AddFastAnswer).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_24.AdminPanelEvents.DeleteFastAnswer).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_24.AdminPanelEvents.ReconPlayer).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_24.AdminPanelEvents.TakeTicket).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_24.AdminPanelEvents.OpenTicket).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_24.AdminPanelEvents.GetStatByDate).addHandler(this.sendEventToServer.bind(this));
@@ -2170,6 +2226,7 @@ class BrowserEventsServer {
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_26.AuctionEvents.CreateBet).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_26.AuctionEvents.CreateLot).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_26.AuctionEvents.PointRequest).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_26.AuctionEvents.ToggleFavoriteLot).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_27.DonateStoreEvents.Opened).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_27.DonateStoreEvents.RequestGiftPlayer).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_27.DonateStoreEvents.ProductBuy).addHandler(this.sendEventToServer.bind(this));
@@ -2194,6 +2251,9 @@ class BrowserEventsServer {
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_29.SkinsEvents.PutOn).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_29.SkinsEvents.TakeOff).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_30.PromoMenuEvents.ActivatePromo).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_31.FactionInviteEvents.Accept).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_31.FactionInviteEvents.Decline).addHandler(this.sendEventToServer.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_32.BarbershopEvents.BuyProduct).addHandler(this.sendEventToServer.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get('logger').addHandler((data) => {
             (0, skyrimPlatform_1.printFile)(data);
         });
@@ -2595,9 +2655,9 @@ const CameraManager_1 = __webpack_require__(4633);
 const cameraConfig_1 = __webpack_require__(5005);
 const tabs_1 = __webpack_require__(8349);
 exports.CharacterLocation = {
-    position: new Vector3_1.Vector3(332.3467, 812.222, -255.6504),
-    rotation: new Vector3_1.Vector3(1.0864, 0.0, 90.581),
-    cellOrWorld: 78790,
+    position: new Vector3_1.Vector3(-41.4064, 1271.2684, 93.9047),
+    rotation: new Vector3_1.Vector3(0, 0, 85),
+    cellOrWorld: 90605,
 };
 class CharacterEditorService {
     constructor() {
@@ -3265,11 +3325,11 @@ exports.CreateCharacterCameraConfig = {
 exports.CreateCharacterCameraConfigScenes = {
     [tabs_1.Tab.Race]: {
         position: new Vector3_1.Vector3(0, -150, -30),
-        direction: new Vector3_1.Vector3(0, -10, -30),
+        direction: new Vector3_1.Vector3(0, -10, 0),
     },
     [tabs_1.Tab.Body]: {
         position: new Vector3_1.Vector3(0, -100, 0),
-        direction: new Vector3_1.Vector3(0, -10, -10),
+        direction: new Vector3_1.Vector3(0, -10, 0),
     },
     [tabs_1.Tab.Brows]: {
         position: new Vector3_1.Vector3(0, 0, 10),
@@ -3277,7 +3337,7 @@ exports.CreateCharacterCameraConfigScenes = {
     },
     [tabs_1.Tab.Clothes]: {
         position: new Vector3_1.Vector3(0, -150, -30),
-        direction: new Vector3_1.Vector3(0, -10, -30),
+        direction: new Vector3_1.Vector3(0, -10, 0),
     },
     [tabs_1.Tab.Eyes]: {
         position: new Vector3_1.Vector3(0, 0, 10),
@@ -3289,7 +3349,7 @@ exports.CreateCharacterCameraConfigScenes = {
     },
     [tabs_1.Tab.Hairs]: {
         position: new Vector3_1.Vector3(0, 0, 10),
-        direction: new Vector3_1.Vector3(0, -20, -30),
+        direction: new Vector3_1.Vector3(0, -20, 0),
     },
     [tabs_1.Tab.Head]: {
         position: new Vector3_1.Vector3(0, 0, 10),
@@ -24048,14 +24108,17 @@ const spApiInteraction_1 = __webpack_require__(3331);
 const FunctionName_1 = __webpack_require__(9865);
 const InterfacesName_1 = __webpack_require__(3638);
 const events_1 = __webpack_require__(3602);
+const events_2 = __webpack_require__(558);
 const binder_1 = __webpack_require__(1220);
 const Binder_1 = __webpack_require__(9132);
 const BrowserEventsHandler_1 = __webpack_require__(3551);
+const EscapeMenu_1 = __webpack_require__(8428);
 const Utils_1 = __webpack_require__(2453);
 class CharacterMenuHandler {
     static init() {
         Binder_1.Binder.bind(binder_1.BinderHash.CharacterMenu, this.open.bind(this));
         BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.CharacterMenuEvents.Close).addHandler(this.close.bind(this));
+        BrowserEventsHandler_1.BrowserEventsHandler.get(events_1.CharacterMenuEvents.BuyVip).addHandler(this.openDonateShop.bind(this));
     }
     static open() {
         (0, Utils_1.sendEventToServer)(events_1.CharacterMenuEvents.Update);
@@ -24067,6 +24130,14 @@ class CharacterMenuHandler {
         spApiInteraction_1.SpApiInteraction.getControllerInstance()
             .lookupListener(browserService_1.BrowserService)
             .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.CharacterMenu}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.CharacterMenu].Hide}`, null, false);
+    }
+    static openDonateShop() {
+        this.close();
+        EscapeMenu_1.EscapeMenu.openMenu('DonateStore');
+        (0, Utils_1.sendEventToServer)(events_2.DonateStoreEvents.Opened);
+        spApiInteraction_1.SpApiInteraction.getControllerInstance()
+            .lookupListener(browserService_1.BrowserService)
+            .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.DonateStore}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.DonateStore].SetTab}`, 4, false);
     }
 }
 exports.CharacterMenuHandler = CharacterMenuHandler;
@@ -24159,7 +24230,7 @@ function initSelectorBrowserEvents() {
         NpcHandler_1.NpcHandler.init();
         StaminaHudState_1.StaminaHudState.update();
         StaminaHudState_1.StaminaHudState.initHook();
-        GameRestrictions_1.GameRestrictions.initAnimationsHook();
+        GameRestrictions_1.GameRestrictions.init();
         Binder_1.Binder.isDisable = false;
         (0, Utils_1.sendEventToServer)(events_1.CharacterSelectorEvents.Choose, { id: data.id });
     });
@@ -24388,12 +24459,12 @@ class EscapeMenu {
             .lookupListener(browserService_1.BrowserService)
             .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.Hide}`, null, false);
     }
-    static openMenu() {
+    static openMenu(navId = null) {
         (0, skyrimPlatform_1.once)('update', () => {
             Hud_1.Hud.close();
             spApiInteraction_1.SpApiInteraction.getControllerInstance()
                 .lookupListener(browserService_1.BrowserService)
-                .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.Show}`, null, true);
+                .executeBrowser(`${this.InterfaceName}/${this.InterfaceFunction.Show}`, { navId }, true);
             this.menuIsOpen = true;
         });
     }
@@ -24492,6 +24563,9 @@ class Hud {
         spApiInteraction_1.SpApiInteraction.getControllerInstance()
             .lookupListener(browserService_1.BrowserService)
             .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.Hud}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.Hud].SetVisibleMinimap}`, true);
+        spApiInteraction_1.SpApiInteraction.getControllerInstance()
+            .lookupListener(browserService_1.BrowserService)
+            .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.Hud}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.Hud].SetShowTask}`, true);
     }
     static hideUserInfo() {
         this.isUserInfoShow = false;
@@ -24504,6 +24578,9 @@ class Hud {
         spApiInteraction_1.SpApiInteraction.getControllerInstance()
             .lookupListener(browserService_1.BrowserService)
             .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.Hud}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.Hud].SetVisibleMinimap}`, false);
+        spApiInteraction_1.SpApiInteraction.getControllerInstance()
+            .lookupListener(browserService_1.BrowserService)
+            .executeBrowser(`${InterfacesName_1.BrowserInterfacesName.Hud}/${FunctionName_1.BrowserFunctionName[InterfacesName_1.BrowserInterfacesName.Hud].SetShowTask}`, false);
     }
     static open() {
         spApiInteraction_1.SpApiInteraction.getControllerInstance()
@@ -25326,6 +25403,7 @@ const BlipHandler_1 = __webpack_require__(9242);
 const PickupItem_1 = __webpack_require__(7005);
 const DefaultBlipts_1 = __webpack_require__(2021);
 const PolygonHandler_1 = __webpack_require__(1033);
+const Follow_1 = __webpack_require__(3066);
 function showSpawnSelector(data) {
     const dto = data.map(item => {
         if (item.location === null) {
@@ -25345,6 +25423,7 @@ function finalAuth() {
     spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(browserService_1.BrowserService).toggleFocus();
     GameSessionTime_1.GameSessionTime.startTimer();
     Recon_1.Recon.init();
+    Follow_1.Follow.init();
     DefaultBlipts_1.DefaultBlips.init();
     BlipHandler_1.BlipHandler.init();
     PickupItem_1.PickupItem.init();
@@ -25550,6 +25629,7 @@ class DefaultBlips {
         BlipHandler_1.BlipHandler.create('blip_dragon_lainalten', BlipType_1.BlipType.Village, 'Лейналтен', 'Лейналтен', false, new Vector3_1.Vector3(-85335.2422, 42475.457, -12275.7705), 0);
         BlipHandler_1.BlipHandler.create('blip_amber_guard', BlipType_1.BlipType.Village, 'Янтарный Страж', 'Янтарный Страж', false, new Vector3_1.Vector3(-120181.0859, 41233.8789, -7248.8999), 0);
         BlipHandler_1.BlipHandler.create('blip_karthwasten', BlipType_1.BlipType.Village, 'Картвастен', 'Картвастен', false, new Vector3_1.Vector3(-132433.0625, 38777.7539, -6226.4082), 0);
+        BlipHandler_1.BlipHandler.create('blip_cold_heart', BlipType_1.BlipType.Village, 'Холодное сердце', 'Холодное сердце', false, new Vector3_1.Vector3(-53190.6445, -31414.7383, -3925.9556), 0);
     }
 }
 exports.DefaultBlips = DefaultBlips;
@@ -25982,6 +26062,154 @@ exports.Rectangle = Rectangle;
 
 /***/ }),
 
+/***/ 3066:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Follow = void 0;
+const skyrimPlatform_1 = __webpack_require__(2112);
+const worldViewMisc_1 = __webpack_require__(9885);
+const Player_1 = __webpack_require__(5456);
+const remoteServer_1 = __webpack_require__(8986);
+const spApiInteraction_1 = __webpack_require__(3331);
+const objectReferenceEx_1 = __webpack_require__(7564);
+class Follow {
+    static init() {
+        (0, skyrimPlatform_1.on)('update', () => {
+            var _a;
+            if (!this.isStarted) {
+                return;
+            }
+            const localPlayerRefr = skyrimPlatform_1.ObjectReference.from(Player_1.localPlayer.actor);
+            const remoteServer = spApiInteraction_1.SpApiInteraction.getControllerInstance().lookupListener(remoteServer_1.RemoteServer);
+            const worlds = remoteServer.getWorldModel();
+            const mov = (_a = worlds.forms.find(v => v === null || v === void 0 ? void 0 : v.isMyClone)) === null || _a === void 0 ? void 0 : _a.movement;
+            if (!localPlayerRefr || mov == null) {
+                return;
+            }
+            if (!this.leads && this.leadServerId != null) {
+                const localFormId = (0, worldViewMisc_1.remoteIdToLocalId)(this.leadServerId);
+                if (!localFormId) {
+                    return;
+                }
+                this.leads = skyrimPlatform_1.Actor.from(skyrimPlatform_1.Game.getFormEx(localFormId));
+            }
+            this.disableLocalPlayerControl();
+            this.applyMovement(localPlayerRefr, mov);
+        });
+    }
+    static start(leadsServerFormId) {
+        (0, skyrimPlatform_1.once)('update', () => {
+            this.disableLocalPlayerControl();
+            this.isStarted = true;
+            this.leadServerId = leadsServerFormId;
+            const localFormId = (0, worldViewMisc_1.remoteIdToLocalId)(leadsServerFormId);
+            if (!localFormId) {
+                return;
+            }
+            const actor = skyrimPlatform_1.Actor.from(skyrimPlatform_1.Game.getFormEx(localFormId));
+            if (!actor) {
+                return;
+            }
+            this.leads = actor;
+        });
+    }
+    static disableLocalPlayerControl() {
+        skyrimPlatform_1.Game.disablePlayerControls(true, true, true, true, true, true, true, true, 0);
+        Player_1.localPlayer.actor.setPlayerControls(false);
+        Player_1.localPlayer.actor.enableAI(true);
+    }
+    static applyMovement(refr, m) {
+        const ac = skyrimPlatform_1.Actor.from(refr);
+        if (!ac) {
+            return;
+        }
+        this.translateTo(refr, m);
+        if (this.leadServerId == null) {
+            return;
+        }
+        const localFormId = (0, worldViewMisc_1.remoteIdToLocalId)(this.leadServerId);
+        if (!localFormId) {
+            return;
+        }
+        const actor = skyrimPlatform_1.Actor.from(skyrimPlatform_1.Game.getFormEx(localFormId));
+        if (!actor) {
+            return;
+        }
+        this.leads = actor;
+        Player_1.localPlayer.actor.setHeadTracking(false);
+        Player_1.localPlayer.actor.setLookAt(this.leads, true);
+        ac.blockActivation(true);
+        this.keepOffsetFromActor(ac, m);
+        this.applySprinting(ac, m.runMode === 'Sprinting');
+        this.applyBlocking(ac, m);
+        this.applySneaking(ac, m.isSneaking);
+    }
+    static translateTo(refr, m) {
+        const time = 0.2;
+        const refrRealPos = objectReferenceEx_1.ObjectReferenceEx.getPos(refr);
+        const distance = objectReferenceEx_1.ObjectReferenceEx.getDistance(refrRealPos, m.pos);
+        if (distance >= 5000) {
+            return;
+        }
+        const speed = distance / time;
+        const angleDiff = Math.abs(m.rot[2] - refr.getAngleZ());
+        if (m.runMode !== 'Standing' || m.isInJumpState || objectReferenceEx_1.ObjectReferenceEx.getDistanceNoZ(refrRealPos, m.pos) > 8 || angleDiff > 80) {
+            refr.translateTo(m.pos[0], m.pos[1], m.pos[2], m.rot[0], m.rot[1], m.rot[2], speed, 0);
+        }
+    }
+    static getOffsetZ(runMode) {
+        switch (runMode) {
+            case 'Walking':
+                return -512;
+            case 'Running':
+                return -1024;
+        }
+        return 0;
+    }
+    static keepOffsetFromActor(ac, m) {
+        var _a;
+        if (!this.leads) {
+            return;
+        }
+        let offsetAngle = m.rot[2] - ((_a = this.leads) === null || _a === void 0 ? void 0 : _a.getAngleZ());
+        if (Math.abs(offsetAngle) < 5) {
+            offsetAngle = 0;
+        }
+        if (m.runMode === 'Standing') {
+            return ac.keepOffsetFromActor(ac, 0, 0, 0, 0, 0, offsetAngle, 1, 1);
+        }
+        const offset = [3 * Math.sin((m.direction / 180) * Math.PI), 3 * Math.cos((m.direction / 180) * Math.PI), this.getOffsetZ(m.runMode)];
+        ac.keepOffsetFromActor(ac, offset[0], offset[1], offset[2], 0, 0, offsetAngle, m.runMode === 'Walking' ? 2048 : 1, 1);
+    }
+    static applySprinting(ac, isSprinting) {
+        if (ac.isSprinting() !== isSprinting) {
+            skyrimPlatform_1.Debug.sendAnimationEvent(ac, isSprinting ? 'SprintStart' : 'SprintStop');
+        }
+    }
+    static applyBlocking(ac, m) {
+        if (ac.getAnimationVariableBool('IsBlocking') !== m.isBlocking) {
+            skyrimPlatform_1.Debug.sendAnimationEvent(ac, m.isBlocking ? 'BlockStart' : 'BlockStop');
+            skyrimPlatform_1.Debug.sendAnimationEvent(ac, m.isSneaking ? 'SneakStart' : 'SneakStop');
+        }
+    }
+    static applySneaking(ac, isSneaking) {
+        const currentIsSneaking = ac.isSneaking() || ac.getAnimationVariableBool('IsSneaking');
+        if (currentIsSneaking !== isSneaking) {
+            skyrimPlatform_1.Debug.sendAnimationEvent(ac, isSneaking ? 'SneakStart' : 'SneakStop');
+        }
+    }
+}
+exports.Follow = Follow;
+Follow.isStarted = false;
+Follow.leads = null;
+Follow.leadServerId = null;
+
+
+/***/ }),
+
 /***/ 3352:
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
@@ -25990,8 +26218,10 @@ exports.Rectangle = Rectangle;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.GameRestrictions = void 0;
 const skyrimPlatform_1 = __webpack_require__(2112);
-const Player_1 = __webpack_require__(5456);
 class GameRestrictions {
+    static get canMove() {
+        return this._canMove;
+    }
     static get canRun() {
         return this._canRun;
     }
@@ -26007,6 +26237,9 @@ class GameRestrictions {
     static get canSneaking() {
         return this._canSneaking;
     }
+    static set canMove(toggle) {
+        this._canMove = toggle;
+    }
     static set canRun(toggle) {
         this._canRun = toggle;
     }
@@ -26018,17 +26251,15 @@ class GameRestrictions {
     }
     static set canSneaking(toggle) {
         this._canSneaking = toggle;
-        if (this._canSneaking) {
-            skyrimPlatform_1.Game.enablePlayerControls(true, true, true, true, true, true, true, true, 0);
-        }
-        else {
-            skyrimPlatform_1.Game.disablePlayerControls(false, false, false, false, true, false, false, false, 0);
-        }
     }
     static set canCombatStage(toggle) {
         this._canCombatStage = toggle;
-        (0, skyrimPlatform_1.once)('update', () => {
-            skyrimPlatform_1.Debug.sendAnimationEvent(Player_1.localPlayer.actor, 'Unequip');
+    }
+    static init() {
+        this.initAnimationsHook();
+        (0, skyrimPlatform_1.on)('update', () => {
+            skyrimPlatform_1.Game.disablePlayerControls(!this.canMove, !this.canCombatStage, true, false, !this.canSneaking, true, false, true, 0);
+            skyrimPlatform_1.Game.enablePlayerControls(this.canMove, this.canCombatStage, false, true, this.canSneaking, false, true, false, 0);
         });
     }
     static initAnimationsHook() {
@@ -26038,16 +26269,13 @@ class GameRestrictions {
                     ctx.animEventName = '';
                     return;
                 }
-                if (ctx.animEventName === 'WeapEquip' && !this._canCombatStage) {
-                    ctx.animEventName = '';
-                    return;
-                }
             },
             leave: ctx => { },
         }, 0x14, 0x14);
     }
 }
 exports.GameRestrictions = GameRestrictions;
+GameRestrictions._canMove = true;
 GameRestrictions._canRun = true;
 GameRestrictions._canSprint = true;
 GameRestrictions._canJump = true;
@@ -26334,6 +26562,7 @@ class ClientPolygonHandler {
         this.lastPosition = null;
         this.lastCellOrlWorld = 60;
         this.distanceThreshold = 50;
+        this.eventAlreadySent = false;
         Object.keys(config_1.ZoneConfig).forEach(zoneType => {
             this.zonesConfig[zoneType] = config_1.ZoneConfig[zoneType].filter(zone => zone.clientCheck);
         });
@@ -26342,12 +26571,12 @@ class ClientPolygonHandler {
             if (playerPosition) {
                 this.updatePlayerPosition(playerPosition);
             }
-            if (this.lastCellOrlWorld === Player_1.localPlayer.cell) {
-                return;
-            }
-            else {
-                if (Player_1.localPlayer.cell !== 60) {
+            if (this.lastCellOrlWorld !== Player_1.localPlayer.cell) {
+                if (!this.eventAlreadySent && Player_1.localPlayer.cell !== 60) {
                     (0, Utils_1.sendEventToServer)(events_2.GreenZoneEvent.PlayerEnter);
+                }
+                else if (!this.eventAlreadySent) {
+                    (0, Utils_1.sendEventToServer)(events_2.GreenZoneEvent.PlayerExit);
                 }
                 this.lastCellOrlWorld = Player_1.localPlayer.cell;
             }
@@ -26395,9 +26624,11 @@ class ClientPolygonHandler {
         return inside;
     }
     handleZoneChanges(newZones) {
+        let eventSent = false;
         newZones.forEach(zone => {
             if (!this.currentZones.has(zone)) {
                 (0, Utils_1.sendEventToServer)(events_2.GreenZoneEvent.PlayerEnter);
+                eventSent = true;
             }
         });
         this.currentZones.forEach(zone => {
@@ -26406,8 +26637,10 @@ class ClientPolygonHandler {
                     return;
                 }
                 (0, Utils_1.sendEventToServer)(events_2.GreenZoneEvent.PlayerExit);
+                eventSent = true;
             }
         });
+        this.eventAlreadySent = eventSent;
     }
     triggerZoneEnterEvent(zone) {
         (0, Utils_1.sendEventToServer)(events_1.PolygonEvents.PlayerEnterZone, {
@@ -26913,6 +27146,7 @@ const controller_3 = __webpack_require__(6241);
 const StartLoadingScreen_1 = __webpack_require__(4763);
 const AnimationsHandler_1 = __webpack_require__(3947);
 const serverEvents_1 = __webpack_require__(593);
+const BarberShop_1 = __webpack_require__(5214);
 class BrowserService extends clientListener_1.ClientListener {
     constructor(sp, controller) {
         super();
@@ -27012,6 +27246,7 @@ class BrowserService extends clientListener_1.ClientListener {
         EscapeMenu_1.EscapeMenu.init();
         Binder_1.Binder.init();
         ArmorShop_1.ArmorShop.init();
+        BarberShop_1.BarberShop.init();
         (0, controller_2.initSelectorBrowserEvents)();
         (0, controller_1.initCharacterEditorBrowserEvents)();
         (0, controller_3.initSpawnSelectorEvents)();
@@ -28705,7 +28940,6 @@ const appearanceSync_1 = __webpack_require__(282);
 const Familiars_1 = __webpack_require__(3246);
 const HealthControlHandler_1 = __webpack_require__(7340);
 const Restrictions_1 = __webpack_require__(9210);
-const StaminaHudState_1 = __webpack_require__(3687);
 const Animations_1 = __webpack_require__(7442);
 const controller_1 = __webpack_require__(6955);
 const controller_2 = __webpack_require__(1113);
@@ -28723,7 +28957,6 @@ const events_1 = __webpack_require__(980);
 const events_2 = __webpack_require__(919);
 const PersonHealth_1 = __webpack_require__(2182);
 const PersonRestrictions_1 = __webpack_require__(9713);
-const PersonStamina_1 = __webpack_require__(3072);
 const events_3 = __webpack_require__(9609);
 const events_4 = __webpack_require__(265);
 const events_5 = __webpack_require__(9110);
@@ -28737,7 +28970,6 @@ const launcherService_1 = __webpack_require__(2041);
 const events_9 = __webpack_require__(2416);
 const events_10 = __webpack_require__(911);
 const ArmorShop_1 = __webpack_require__(7418);
-const WeaponShop_1 = __webpack_require__(7683);
 const events_11 = __webpack_require__(2334);
 const FishingWork_1 = __webpack_require__(1508);
 const browserService_1 = __webpack_require__(5472);
@@ -28750,6 +28982,9 @@ const events_13 = __webpack_require__(5578);
 const BanEvents_1 = __webpack_require__(2957);
 const BansSystem_1 = __webpack_require__(2892);
 const PickupItem_1 = __webpack_require__(7005);
+const events_14 = __webpack_require__(515);
+const BarberShop_1 = __webpack_require__(5214);
+const Follow_1 = __webpack_require__(3066);
 const getPcInventory = () => {
     const res = skyrimPlatform_2.storage['pcInv'];
     if (typeof res === 'object' && res['entries']) {
@@ -28796,7 +29031,6 @@ class RemoteServer extends clientListener_1.ClientListener {
         this.controller.emitter.on('updateAnimationMessage', e => this.onUpdateAnimationMessage(e));
         this.controller.emitter.on('updateOtherAnimationMessage', e => this.onUpdateOtherAnimationMessage(e));
         this.controller.emitter.on('updateEquipmentMessage', e => this.onUpdateEquipmentMessage(e));
-        this.controller.emitter.on('changeValuesMessage', e => this.onChangeValuesMessage(e));
         this.controller.emitter.on('updateAppearanceMessage', e => this.onUpdateAppearanceMessage(e));
         this.controller.emitter.on('teleportMessage', e => this.onTeleportMessage(e));
         this.controller.emitter.on('teleportMessage2', e => this.onTeleportMessage(e));
@@ -29249,9 +29483,6 @@ class RemoteServer extends clientListener_1.ClientListener {
         if (msg.tIsDead.propName !== (0, nameof_1.nameof)('isDead') || typeof msg.tIsDead.data !== 'boolean') {
             return;
         }
-        if (msg.tChangeValues) {
-            this.onChangeValuesMessage({ message: msg.tChangeValues });
-        }
         (0, skyrimPlatform_2.once)('update', () => this.onUpdatePropertyMessage({ message: msg.tIsDead }));
         if (msg.tTeleport) {
             this.onTeleportMessage({ message: msg.tTeleport });
@@ -29285,20 +29516,6 @@ class RemoteServer extends clientListener_1.ClientListener {
         this.worldModel.playerCharacterFormIdx = -1;
         this.worldModel.playerCharacterRefrId = 0;
         this.controller.lookupListener(launcherService_1.LauncherService).sendTokenAndLogin();
-    }
-    onChangeValuesMessage(event) {
-        const msg = event.message;
-        (0, skyrimPlatform_2.once)('update', () => {
-            const id = this.getIdManager().getId(msg.idx);
-            const refr = id === this.getMyActorIndex() ? skyrimPlatform_2.Game.getPlayer() : (0, worldViewMisc_1.getObjectReference)(id);
-            const ac = skyrimPlatform_1.Actor.from(refr);
-            if (!ac) {
-                return;
-            }
-            (0, actorvalues_1.setActorValuePercentage)(ac, 'health', msg.data.health);
-            (0, actorvalues_1.setActorValuePercentage)(ac, 'stamina', msg.data.stamina);
-            (0, actorvalues_1.setActorValuePercentage)(ac, 'magicka', msg.data.magicka);
-        });
     }
     onSetRaceMenuOpenMessage(event) {
         const msg = event.message;
@@ -29415,7 +29632,8 @@ class RemoteServer extends clientListener_1.ClientListener {
                 HealthControlHandler_1.HealthControlHandler.setClientPlayerHealth(health);
                 break;
             case PersonHealth_1.PersonHealthEvent.StartDeathStage:
-                HealthControlHandler_1.HealthControlHandler.startDeathStageForPlayer();
+                const deathData = msg.content.data;
+                HealthControlHandler_1.HealthControlHandler.startDeathStageForPlayer(deathData);
                 break;
             case PersonHealth_1.PersonHealthEvent.EndDeathStage:
                 HealthControlHandler_1.HealthControlHandler.endDeathStageForPlayer();
@@ -29446,9 +29664,6 @@ class RemoteServer extends clientListener_1.ClientListener {
             case events_6.EscMenuClientEvents.ExitGame:
                 EscapeMenu_1.EscapeMenu.exitGame(msg.content.data);
                 break;
-            case PersonStamina_1.PersonStaminaEvent.SetClientStamina:
-                StaminaHudState_1.StaminaHudState.setStamin(msg.content.data);
-                break;
             case events_2.FamiliarsEvents.addFamiliar:
                 Familiars_1.FamiliarsHandler.addFamiliar(msg.content.data);
                 break;
@@ -29464,6 +29679,7 @@ class RemoteServer extends clientListener_1.ClientListener {
                 GameRestrictions_1.GameRestrictions.canJump = gameRestriction.CanJump != null ? gameRestriction.CanJump : GameRestrictions_1.GameRestrictions.canJump;
                 GameRestrictions_1.GameRestrictions.canCombatStage =
                     gameRestriction.CanCombatStage != null ? gameRestriction.CanCombatStage : GameRestrictions_1.GameRestrictions.canCombatStage;
+                GameRestrictions_1.GameRestrictions.canSneaking = gameRestriction.CanSneaking != null ? gameRestriction.CanSneaking : GameRestrictions_1.GameRestrictions.canSneaking;
                 break;
             case serverEvents_1.ServerUtilsEvents.Teleport:
                 const teleportData = msg.content.data;
@@ -29477,13 +29693,13 @@ class RemoteServer extends clientListener_1.ClientListener {
                 const response = msg.content.data;
                 (0, controller_2.CharacterEditorOnCharacterSave)(response);
                 break;
+            case events_14.BarbershopEvents.OpenShop:
+                const barberShopDto = msg.content.data;
+                BarberShop_1.BarberShop.playerOpenedShop(barberShopDto);
+                break;
             case events_10.ArmorWeaponEvents.OpenArmor:
                 const armorShopDto = msg.content.data;
                 ArmorShop_1.ArmorShop.playerOpenedShop(armorShopDto);
-                break;
-            case events_10.ArmorWeaponEvents.OpenWeapon:
-                const weaponShopDto = msg.content.data;
-                WeaponShop_1.WeaponShop.playerOpenedShop(weaponShopDto);
                 break;
             case events_11.FishingWorkEvents.StartFishing:
                 FishingWork_1.FishingWork.startFishing();
@@ -29519,6 +29735,10 @@ class RemoteServer extends clientListener_1.ClientListener {
             case serverEvents_1.ServerEvents.CreatePayment:
                 const paymentData = msg.content.data;
                 skyrimPlatform_1.browser.loadBrowserUrl(paymentData.url);
+                break;
+            case 'startFollow':
+                const leadId = msg.content.data;
+                Follow_1.Follow.start(leadId);
                 break;
             default:
                 break;
@@ -29588,7 +29808,6 @@ const animation_1 = __webpack_require__(933);
 const actorvalues_1 = __webpack_require__(9714);
 const remoteServer_1 = __webpack_require__(8986);
 const deathService_1 = __webpack_require__(4314);
-const appearanceSync_1 = __webpack_require__(282);
 const Recon_1 = __webpack_require__(4801);
 const Utils_1 = __webpack_require__(2453);
 const playerFormId = 0x14;
@@ -29724,21 +29943,6 @@ class SendInputsService extends clientListener_1.ClientListener {
                 });
             }
         }
-    }
-    sendAppearance(_refrId) {
-        if (_refrId) {
-            return;
-        }
-        const appearance = appearanceSync_1.AppearanceSync.getAppearance(this.sp.Game.getPlayer());
-        const message = {
-            t: messages_1.MsgType.UpdateAppearance,
-            data: appearance,
-            _refrId,
-        };
-        this.controller.emitter.emit('sendMessageWithRefrId', {
-            message,
-            reliability: 'reliable',
-        });
     }
     getInputOwner(_refrId) {
         return _refrId ? this.sp.Actor.from(this.sp.Game.getFormEx(worldViewMisc.remoteIdToLocalId(_refrId))) : this.sp.Game.getPlayer();
@@ -30453,6 +30657,7 @@ var AdminPanelEvents;
     AdminPanelEvents["GetStatByDate"] = "AdminPanel:getDateByDate";
     AdminPanelEvents["GetAdminStatByDate"] = "AdminPanel:getAdminStatByDate";
     AdminPanelEvents["SetIsReadForReport"] = "AdminPanel:setIsReadForReport";
+    AdminPanelEvents["ReconPlayer"] = "AdminPanel:reconPlayer";
 })(AdminPanelEvents = exports.AdminPanelEvents || (exports.AdminPanelEvents = {}));
 
 
@@ -30569,6 +30774,8 @@ var AnimationEnum;
     AnimationEnum["IdleHoney"] = "idleHoney";
     AnimationEnum["PickBarrel"] = "pickBarrel";
     AnimationEnum["IdleBarrel"] = "idleBarrel";
+    AnimationEnum["PickMcrate"] = "pickmcrate";
+    AnimationEnum["IdleMcrate"] = "idlemcrate";
     AnimationEnum["Buther"] = "buther";
     AnimationEnum["Skining"] = "skining";
     AnimationEnum["Fishingidle"] = "fishingidle";
@@ -30611,7 +30818,7 @@ var AnimationEnum;
     AnimationEnum["DrinkArgonianBloodwine"] = "argonianBloodwine";
     AnimationEnum["DrinkCyrodilicBrandy"] = "cyrodilicBrandy";
     AnimationEnum["DrinkJugOfMilk"] = "jugOfMilk";
-    AnimationEnum["EatSkooma"] = "skooma";
+    AnimationEnum["EatSkooma"] = "fastskooma";
     AnimationEnum["EatSackOfFlour"] = "sackOfFlour";
     AnimationEnum["idleWoodChopStart"] = "idleWoodChopStart";
 })(AnimationEnum = exports.AnimationEnum || (exports.AnimationEnum = {}));
@@ -30710,7 +30917,7 @@ exports.ANIMATIONS_CONFIG = {
     [AnimationEnum_1.AnimationEnum.WriteLedgerEnter]: 'IdleWriteLedgerEnter',
     [AnimationEnum_1.AnimationEnum.WriteLedgerWrite]: 'IdleWriteLedgerWrite',
     [AnimationEnum_1.AnimationEnum.Book_Reading]: 'IdleBook_Reading',
-    [AnimationEnum_1.AnimationEnum.DrinkPotion]: 'IdleDrinkPotion',
+    [AnimationEnum_1.AnimationEnum.DrinkPotion]: 'restorehealth01',
     [AnimationEnum_1.AnimationEnum.ChildPlayDoll]: 'IdleChildPlayDoll',
     [AnimationEnum_1.AnimationEnum.PickUpBeam]: 'pick_up_beam',
     [AnimationEnum_1.AnimationEnum.IdleMerno]: 'idle_merno',
@@ -30728,6 +30935,8 @@ exports.ANIMATIONS_CONFIG = {
     [AnimationEnum_1.AnimationEnum.IdleHoney]: 'idle_honey',
     [AnimationEnum_1.AnimationEnum.PickBarrel]: 'pick_barrel',
     [AnimationEnum_1.AnimationEnum.IdleBarrel]: 'idle_barrel',
+    [AnimationEnum_1.AnimationEnum.PickMcrate]: 'pickmcrate',
+    [AnimationEnum_1.AnimationEnum.IdleMcrate]: 'idlemcrate',
     [AnimationEnum_1.AnimationEnum.Buther]: 'buther',
     [AnimationEnum_1.AnimationEnum.Skining]: 'skining',
     [AnimationEnum_1.AnimationEnum.Fishingidle]: 'fishingidle',
@@ -30772,7 +30981,7 @@ exports.ANIMATIONS_CONFIG = {
     [AnimationEnum_1.AnimationEnum.DrinkArgonianBloodwine]: 'ArgonianBloodWine',
     [AnimationEnum_1.AnimationEnum.DrinkCyrodilicBrandy]: 'CyrodilicBrandy',
     [AnimationEnum_1.AnimationEnum.DrinkJugOfMilk]: 'jugOfMilk',
-    [AnimationEnum_1.AnimationEnum.EatSkooma]: 'skooma',
+    [AnimationEnum_1.AnimationEnum.EatSkooma]: 'IdleDrinkPotion',
     [AnimationEnum_1.AnimationEnum.EatSackOfFlour]: 'SackOfFlour',
     [AnimationEnum_1.AnimationEnum.idleWoodChopStart]: 'idleWoodChopStart',
 };
@@ -30823,6 +31032,7 @@ var ArmorStoreEvents;
     ArmorStoreEvents["Close"] = "armorStore:close";
     ArmorStoreEvents["SetActiveProduct"] = "armorStore:setActiveProduct";
     ArmorStoreEvents["BuyProduct"] = "armorStore:buyProduct";
+    ArmorStoreEvents["ChangeCategory"] = "armorStore:changeCategory";
 })(ArmorStoreEvents = exports.ArmorStoreEvents || (exports.ArmorStoreEvents = {}));
 var ArmorWeaponEvents;
 (function (ArmorWeaponEvents) {
@@ -30923,11 +31133,11 @@ exports.ArmorConfig = {
         magic: 0
     },
     [ItemHashes_1.ItemHashes.GLASS_BRACERS]: {
-        physical: 16,
+        physical: 11,
         magic: 0
     },
     [ItemHashes_1.ItemHashes.GLASS_BOOTS]: {
-        physical: 16,
+        physical: 11,
         magic: 0
     },
     [ItemHashes_1.ItemHashes.GLASS_SHIELD]: {
@@ -31095,7 +31305,7 @@ exports.ArmorConfig = {
         magic: 0
     },
     [ItemHashes_1.ItemHashes.NORDIC_CARVED_HELMET]: {
-        physical: 2,
+        physical: 20,
         magic: 0
     },
     [ItemHashes_1.ItemHashes.NORDIC_CARVED_ARMOR]: {
@@ -31153,6 +31363,7 @@ var BankEvents;
     BankEvents["PayRentHouse"] = "bank:payRentHouse";
     BankEvents["PayRentBusiness"] = "bank:payRentBusiness";
     BankEvents["WithdrawFaction"] = "bank:withdrawFaction";
+    BankEvents["ReplenishFaction"] = "bank:replenishFaction";
     BankEvents["BusinessWithdraw"] = "bank:businessWithdraw";
     BankEvents["BusinessReplenish"] = "bank:businessReplenish";
 })(BankEvents = exports.BankEvents || (exports.BankEvents = {}));
@@ -31171,6 +31382,25 @@ var BansEvents;
 (function (BansEvents) {
     BansEvents["showBans"] = "bans:show";
 })(BansEvents = exports.BansEvents || (exports.BansEvents = {}));
+
+
+/***/ }),
+
+/***/ 515:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BarbershopEvents = void 0;
+var BarbershopEvents;
+(function (BarbershopEvents) {
+    BarbershopEvents["Close"] = "barbershop:close";
+    BarbershopEvents["SetActiveProduct"] = "barbershop:setActiveProduct";
+    BarbershopEvents["SetActiveColor"] = "barbershop:setActiveColor";
+    BarbershopEvents["BuyProduct"] = "barbershop:buyProduct";
+    BarbershopEvents["OpenShop"] = "barbershop:openShop";
+})(BarbershopEvents = exports.BarbershopEvents || (exports.BarbershopEvents = {}));
 
 
 /***/ }),
@@ -31513,20 +31743,23 @@ exports.BrowserFunctionName = {
     [InterfacesName_1.BrowserInterfacesName.Auction]: {
         Show: 'show',
         Hide: 'hide',
+        SetBalance: 'setBalance',
         SetLots: 'setLots',
         AddLot: 'addLot',
+        Remove: 'removeLot',
         UpdateLot: 'updateLot',
-        RemoveLot: 'removeLot',
         SetSelfBets: 'setSelfBets',
-        AddSelfBets: 'addSelfBets',
-        UpdateSelfBets: 'updateSelfBets',
-        RemoveSelfBets: 'removeSelfBets',
+        AddSelfBet: 'addSelfBet',
+        RemoveSelfBet: 'removeSelfBet',
+        UpdateSelfBet: 'updateSelfBet',
+        SetMostPopularLotId: 'setMostPopularLotId',
         SetProperty: 'setProperty',
     },
     [InterfacesName_1.BrowserInterfacesName.Bank]: {
         Show: 'show',
         Hide: 'hide',
-        SetBank: 'setBank',
+        SetTitle: 'setTitle',
+        SetLimits: 'setLimits',
         SetBalance: 'setBalance',
         SetHouse: 'setHouse',
         SetBusiness: 'setBusiness',
@@ -31561,6 +31794,7 @@ exports.BrowserFunctionName = {
     [InterfacesName_1.BrowserInterfacesName.Fraction]: {
         Show: 'show',
         Hide: 'hide',
+        SetTitle: 'setTitle',
         SetFactionHash: 'setFactionHash',
         SetPlayer: 'setPlayer',
         SetPages: 'setPages',
@@ -31648,10 +31882,10 @@ exports.BrowserFunctionName = {
     [InterfacesName_1.BrowserInterfacesName.DeathScreen]: {
         Show: 'show',
         Hide: 'hide',
-        SetSeconds: 'setSeconds',
-        SetShowWaitBtn: 'setShowWaitBtn',
-        AddSeconds: 'addSeconds',
-        ActivateDeathButton: 'activateDeathButton',
+        SetInfo: 'setInfo',
+        SetSecondsLeft: 'setSecondsLeft',
+        AddSecondsLeft: 'addSecondsLeft',
+        SetEnabledDieButton: 'setEnabledDieButton',
     },
     [InterfacesName_1.BrowserInterfacesName.AdminPanel]: {
         Show: 'show',
@@ -31760,6 +31994,14 @@ exports.BrowserFunctionName = {
         SetStoreName: 'setStoreName',
         SetProducts: 'setProducts',
     },
+    [InterfacesName_1.BrowserInterfacesName.BarberShop]: {
+        Show: 'show',
+        Hide: 'hide',
+        SetBalance: 'setBalance',
+        SetStoreName: 'setStoreName',
+        SetProducts: 'setProducts',
+        SetColors: 'setColors',
+    },
     [InterfacesName_1.BrowserInterfacesName.Cooking]: {
         Show: 'show',
         Hide: 'hide',
@@ -31825,6 +32067,12 @@ exports.BrowserFunctionName = {
         Hide: 'hide',
         SetPosition: 'setPosition',
     },
+    [InterfacesName_1.BrowserInterfacesName.FactionInvite]: {
+        Show: 'show',
+        Hide: 'hide',
+        SetFactionHash: 'setFactionHash',
+        SetPrice: 'setPrice',
+    },
 };
 
 
@@ -31883,6 +32131,7 @@ var BrowserInterfacesName;
     BrowserInterfacesName["ManufacturingBusiness"] = "manufacturingBusiness";
     BrowserInterfacesName["TradingStore"] = "tradingStore";
     BrowserInterfacesName["ArmorStore"] = "armorStore";
+    BrowserInterfacesName["BarberShop"] = "barbershop";
     BrowserInterfacesName["Arena"] = "arena";
     BrowserInterfacesName["ArenaConfirmWindow"] = "arenaConfirmWindow";
     BrowserInterfacesName["ChooseClothes"] = "chooseClothes";
@@ -31898,6 +32147,7 @@ var BrowserInterfacesName;
     BrowserInterfacesName["PickupItem"] = "pickupItem";
     BrowserInterfacesName["Skins"] = "skins";
     BrowserInterfacesName["Queue"] = "queue";
+    BrowserInterfacesName["FactionInvite"] = "factionInvite";
 })(BrowserInterfacesName = exports.BrowserInterfacesName || (exports.BrowserInterfacesName = {}));
 
 
@@ -31934,6 +32184,23 @@ var CharacterMenuEvents;
     CharacterMenuEvents["BuyVip"] = "characterMenu:buyVip";
     CharacterMenuEvents["Update"] = "characterMenu:update";
 })(CharacterMenuEvents = exports.CharacterMenuEvents || (exports.CharacterMenuEvents = {}));
+
+
+/***/ }),
+
+/***/ 9998:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ChooseWorkTypeEvents = void 0;
+var ChooseWorkTypeEvents;
+(function (ChooseWorkTypeEvents) {
+    ChooseWorkTypeEvents["Close"] = "chooseWorkType:close";
+    ChooseWorkTypeEvents["Start"] = "chooseWorkType:start";
+    ChooseWorkTypeEvents["Dismiss"] = "chooseWorkType:dismiss";
+})(ChooseWorkTypeEvents = exports.ChooseWorkTypeEvents || (exports.ChooseWorkTypeEvents = {}));
 
 
 /***/ }),
@@ -32048,7 +32315,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 2
+        stamin: 2,
     },
     [ItemHashes_1.ItemHashes.IRON_SWORD]: {
         standard: 7,
@@ -32056,7 +32323,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 7
+        stamin: 7,
     },
     [ItemHashes_1.ItemHashes.STEEL_SWORD]: {
         standard: 8,
@@ -32064,7 +32331,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 7
+        stamin: 7,
     },
     [ItemHashes_1.ItemHashes.ORCISH_SWORD]: {
         standard: 9,
@@ -32072,7 +32339,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 7
+        stamin: 7,
     },
     [ItemHashes_1.ItemHashes.DWARVEN_SWORD]: {
         standard: 10,
@@ -32080,7 +32347,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 7
+        stamin: 7,
     },
     [ItemHashes_1.ItemHashes.ELVEN_SWORD]: {
         standard: 11,
@@ -32088,7 +32355,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 7
+        stamin: 7,
     },
     [ItemHashes_1.ItemHashes.GLASS_SWORD]: {
         standard: 12,
@@ -32096,7 +32363,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 7
+        stamin: 7,
     },
     [ItemHashes_1.ItemHashes.EBONY_SWORD]: {
         standard: 13,
@@ -32104,7 +32371,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 7
+        stamin: 7,
     },
     [ItemHashes_1.ItemHashes.DAEDRIC_SWORD]: {
         standard: 14,
@@ -32112,7 +32379,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 7
+        stamin: 7,
     },
     [ItemHashes_1.ItemHashes.DRAGONBONE_SWORD]: {
         standard: 15,
@@ -32120,7 +32387,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 7
+        stamin: 7,
     },
     [ItemHashes_1.ItemHashes.IRON_DAGGER]: {
         standard: 4,
@@ -32128,7 +32395,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.STEEL_DAGGER]: {
         standard: 5,
@@ -32136,7 +32403,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.ORCISH_DAGGER]: {
         standard: 6,
@@ -32144,7 +32411,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.DWARVEN_DAGGER]: {
         standard: 7,
@@ -32152,7 +32419,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.ELVEN_DAGGER]: {
         standard: 8,
@@ -32160,7 +32427,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.GLASS_DAGGER]: {
         standard: 9,
@@ -32168,7 +32435,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.EBONY_DAGGER]: {
         standard: 10,
@@ -32176,7 +32443,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.DAEDRIC_DAGGER]: {
         standard: 11,
@@ -32184,7 +32451,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.DRAGONBONE_DAGGER]: {
         standard: 12,
@@ -32192,7 +32459,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.IRON_MACE]: {
         standard: 9,
@@ -32200,7 +32467,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 9
+        stamin: 9,
     },
     [ItemHashes_1.ItemHashes.STEEL_MACE]: {
         standard: 10,
@@ -32208,7 +32475,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 9
+        stamin: 9,
     },
     [ItemHashes_1.ItemHashes.ORCISH_MACE]: {
         standard: 11,
@@ -32216,7 +32483,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 9
+        stamin: 9,
     },
     [ItemHashes_1.ItemHashes.DWARVEN_MACE]: {
         standard: 12,
@@ -32224,7 +32491,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 9
+        stamin: 9,
     },
     [ItemHashes_1.ItemHashes.ELVEN_MACE]: {
         standard: 13,
@@ -32232,7 +32499,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 9
+        stamin: 9,
     },
     [ItemHashes_1.ItemHashes.GLASS_MACE]: {
         standard: 14,
@@ -32240,7 +32507,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 9
+        stamin: 9,
     },
     [ItemHashes_1.ItemHashes.EBONY_MACE]: {
         standard: 15,
@@ -32248,7 +32515,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 9
+        stamin: 9,
     },
     [ItemHashes_1.ItemHashes.DAEDRIC_MACE]: {
         standard: 16,
@@ -32256,7 +32523,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 9
+        stamin: 9,
     },
     [ItemHashes_1.ItemHashes.DRAGONBONE_MACE]: {
         standard: 17,
@@ -32264,7 +32531,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 9
+        stamin: 9,
     },
     [ItemHashes_1.ItemHashes.IRON_WAR_AXE]: {
         standard: 8,
@@ -32272,7 +32539,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 8
+        stamin: 8,
     },
     [ItemHashes_1.ItemHashes.STEEL_WAR_AXE]: {
         standard: 9,
@@ -32280,7 +32547,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 8
+        stamin: 8,
     },
     [ItemHashes_1.ItemHashes.ORCISH_WAR_AXE]: {
         standard: 10,
@@ -32288,7 +32555,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 8
+        stamin: 8,
     },
     [ItemHashes_1.ItemHashes.DWARVEN_WAR_AXE]: {
         standard: 11,
@@ -32296,7 +32563,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 8
+        stamin: 8,
     },
     [ItemHashes_1.ItemHashes.ELVEN_WAR_AXE]: {
         standard: 12,
@@ -32304,7 +32571,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 8
+        stamin: 8,
     },
     [ItemHashes_1.ItemHashes.GLASS_WAR_AXE]: {
         standard: 13,
@@ -32312,7 +32579,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 8
+        stamin: 8,
     },
     [ItemHashes_1.ItemHashes.EBONY_WAR_AXE]: {
         standard: 14,
@@ -32320,7 +32587,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 8
+        stamin: 8,
     },
     [ItemHashes_1.ItemHashes.DAEDRIC_WAR_AXE]: {
         standard: 15,
@@ -32328,7 +32595,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 8
+        stamin: 8,
     },
     [ItemHashes_1.ItemHashes.DRAGONBONE_WAR_AXE]: {
         standard: 16,
@@ -32336,7 +32603,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 8
+        stamin: 8,
     },
     [ItemHashes_1.ItemHashes.IRON_GREATSWORD]: {
         standard: 15,
@@ -32344,7 +32611,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 18
+        stamin: 18,
     },
     [ItemHashes_1.ItemHashes.STEEL_GREATSWORD]: {
         standard: 17,
@@ -32352,7 +32619,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 18
+        stamin: 18,
     },
     [ItemHashes_1.ItemHashes.ORCISH_GREATSWORD]: {
         standard: 18,
@@ -32360,7 +32627,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 18
+        stamin: 18,
     },
     [ItemHashes_1.ItemHashes.DWARVEN_GREATSWORD]: {
         standard: 19,
@@ -32368,7 +32635,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 18
+        stamin: 18,
     },
     [ItemHashes_1.ItemHashes.ELVEN_GREATSWORD]: {
         standard: 20,
@@ -32376,7 +32643,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 18
+        stamin: 18,
     },
     [ItemHashes_1.ItemHashes.GLASS_GREATSWORD]: {
         standard: 21,
@@ -32384,7 +32651,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 18
+        stamin: 18,
     },
     [ItemHashes_1.ItemHashes.EBONY_GREATSWORD]: {
         standard: 22,
@@ -32392,7 +32659,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 18
+        stamin: 18,
     },
     [ItemHashes_1.ItemHashes.DAEDRIC_GREATSWORD]: {
         standard: 24,
@@ -32400,7 +32667,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 18
+        stamin: 18,
     },
     [ItemHashes_1.ItemHashes.DRAGONBONE_GREATSWORD]: {
         standard: 25,
@@ -32408,7 +32675,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 18
+        stamin: 18,
     },
     [ItemHashes_1.ItemHashes.IRON_WARHAMMER]: {
         standard: 18,
@@ -32416,7 +32683,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 20
+        stamin: 20,
     },
     [ItemHashes_1.ItemHashes.STEEL_WARHAMMER]: {
         standard: 20,
@@ -32424,7 +32691,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 20
+        stamin: 20,
     },
     [ItemHashes_1.ItemHashes.ORCISH_WARHAMMER]: {
         standard: 21,
@@ -32432,7 +32699,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 20
+        stamin: 20,
     },
     [ItemHashes_1.ItemHashes.DWARVEN_WARHAMMER]: {
         standard: 22,
@@ -32440,7 +32707,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 20
+        stamin: 20,
     },
     [ItemHashes_1.ItemHashes.ELVEN_WARHAMMER]: {
         standard: 23,
@@ -32448,7 +32715,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 20
+        stamin: 20,
     },
     [ItemHashes_1.ItemHashes.GLASS_WARHAMMER]: {
         standard: 24,
@@ -32456,7 +32723,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 20
+        stamin: 20,
     },
     [ItemHashes_1.ItemHashes.EBONY_WARHAMMER]: {
         standard: 25,
@@ -32464,7 +32731,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 20
+        stamin: 20,
     },
     [ItemHashes_1.ItemHashes.DAEDRIC_WARHAMMER]: {
         standard: 27,
@@ -32472,7 +32739,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 20
+        stamin: 20,
     },
     [ItemHashes_1.ItemHashes.DRAGONBONE_WARHAMMER]: {
         standard: 28,
@@ -32480,7 +32747,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 20
+        stamin: 20,
     },
     [ItemHashes_1.ItemHashes.IRON_BATTLEAXE]: {
         standard: 16,
@@ -32488,7 +32755,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 19
+        stamin: 19,
     },
     [ItemHashes_1.ItemHashes.STEEL_BATTLEAXE]: {
         standard: 18,
@@ -32496,7 +32763,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 19
+        stamin: 19,
     },
     [ItemHashes_1.ItemHashes.ORCISH_BATTLEAXE]: {
         standard: 19,
@@ -32504,7 +32771,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 19
+        stamin: 19,
     },
     [ItemHashes_1.ItemHashes.DWARVEN_BATTLEAXE]: {
         standard: 20,
@@ -32512,7 +32779,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 19
+        stamin: 19,
     },
     [ItemHashes_1.ItemHashes.ELVEN_BATTLEAXE]: {
         standard: 21,
@@ -32520,7 +32787,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 19
+        stamin: 19,
     },
     [ItemHashes_1.ItemHashes.GLASS_BATTLEAXE]: {
         standard: 22,
@@ -32528,7 +32795,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 19
+        stamin: 19,
     },
     [ItemHashes_1.ItemHashes.EBONY_BATTLEAXE]: {
         standard: 23,
@@ -32536,7 +32803,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 19
+        stamin: 19,
     },
     [ItemHashes_1.ItemHashes.DAEDRIC_BATTLEAXE]: {
         standard: 25,
@@ -32544,7 +32811,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 19
+        stamin: 19,
     },
     [ItemHashes_1.ItemHashes.DRAGONBONE_BATTLEAXE]: {
         standard: 26,
@@ -32552,7 +32819,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 19
+        stamin: 19,
     },
     [ItemHashes_1.ItemHashes.LONG_BOW]: {
         standard: 12,
@@ -32560,7 +32827,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.HUNTING_BOW]: {
         standard: 14,
@@ -32568,7 +32835,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 5
+        stamin: 5,
     },
     [ItemHashes_1.ItemHashes.ORCISH_BOW]: {
         standard: 20,
@@ -32576,7 +32843,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 4
+        stamin: 4,
     },
     [ItemHashes_1.ItemHashes.DWARVEN_BOW]: {
         standard: 24,
@@ -32584,7 +32851,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 4
+        stamin: 4,
     },
     [ItemHashes_1.ItemHashes.ELVEN_BOW]: {
         standard: 26,
@@ -32592,7 +32859,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 3
+        stamin: 3,
     },
     [ItemHashes_1.ItemHashes.GLASS_BOW]: {
         standard: 30,
@@ -32600,7 +32867,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 3
+        stamin: 3,
     },
     [ItemHashes_1.ItemHashes.EBONY_BOW]: {
         standard: 34,
@@ -32608,7 +32875,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 3
+        stamin: 3,
     },
     [ItemHashes_1.ItemHashes.DAEDRIC_BOW]: {
         standard: 38,
@@ -32616,7 +32883,7 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 3
+        stamin: 3,
     },
     [ItemHashes_1.ItemHashes.DRAGONBONE_BOW]: {
         standard: 40,
@@ -32624,7 +32891,111 @@ exports.DamageConfig = {
         critical: 0,
         bash: 0,
         sneak: 0,
-        stamin: 3
+        stamin: 3,
+    },
+    [ItemHashes_1.ItemHashes.DRAGONBONE_BOW]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.HIDE_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.ELVEN_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.GLASS_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.DRAGONSCALE_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.IRON_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.STEEL_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.ORCISH_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.DWARVEN_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.NORDIC_CARVED_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.EBONY_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.DAEDRIC_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
+    },
+    [ItemHashes_1.ItemHashes.DRAGONPLATE_SHIELD]: {
+        standard: 1,
+        power: 1,
+        critical: 0,
+        bash: 0,
+        sneak: 0,
+        stamin: 5,
     },
 };
 
@@ -32642,19 +33013,6 @@ var DamageSystemEvents;
 (function (DamageSystemEvents) {
     DamageSystemEvents["HIT"] = "damageSystem:hit";
 })(DamageSystemEvents = exports.DamageSystemEvents || (exports.DamageSystemEvents = {}));
-
-
-/***/ }),
-
-/***/ 6702:
-/***/ ((__unused_webpack_module, exports) => {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.TIME_STAGE_OF_DEATH_WAIT_HELP = exports.TIME_STAGE_OF_DEATH = void 0;
-exports.TIME_STAGE_OF_DEATH = 90;
-exports.TIME_STAGE_OF_DEATH_WAIT_HELP = 90;
 
 
 /***/ }),
@@ -32700,6 +33058,22 @@ var DonateStoreEvents;
     DonateStoreEvents["GiftWarehouseItem"] = "donateStore:giftWarehouseItem";
     DonateStoreEvents["ClickWarehouseButton"] = "donateStore:clickWarehouseButton";
 })(DonateStoreEvents = exports.DonateStoreEvents || (exports.DonateStoreEvents = {}));
+
+
+/***/ }),
+
+/***/ 8083:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.FactionInviteEvents = void 0;
+var FactionInviteEvents;
+(function (FactionInviteEvents) {
+    FactionInviteEvents["Accept"] = "factionInvite:accept";
+    FactionInviteEvents["Decline"] = "factionInvite:decline";
+})(FactionInviteEvents = exports.FactionInviteEvents || (exports.FactionInviteEvents = {}));
 
 
 /***/ }),
@@ -32833,111 +33207,8 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NpcConfig = void 0;
 const npcEnums_1 = __webpack_require__(1020);
 exports.NpcConfig = {
-    [npcEnums_1.NpcHash.SawmillWorks]: {
+    [npcEnums_1.NpcHash.NPC_MALE_1]: {
         appearance: {
-            name: 'Эйндвар Ветровей',
-            isFemale: false,
-            raceId: 79681,
-            weight: 100,
-            hairColor: 1711132,
-            skinColor: 7364950,
-            headpartIds: [333363, 333361, 651425, 546143, 332816, 916282, 843121, 1016274, 815395],
-            headTextureSetId: 853791,
-            options: [
-                0.30000001192092896, -0.5, -0.5, 0.800000011920929, -1, -0.30000001192092896, -0.42000001668930054, -0.699999988079071,
-                -0.10000000149011612, -1, 0, -0.30000001192092896, -0.20000000298023224, 0.30000001192092896, 0.8999999761581421,
-                -0.20000000298023224, 0.30000001192092896, -0.6000000238418579, 0,
-            ],
-            presets: [4, -1, 1, 9],
-            tints: [
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
-                    type: 6,
-                    argb: -9412266,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
-                    type: 4,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
-                    type: 5,
-                    argb: 1495346002,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
-                    type: 2,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
-                    type: 9,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
-                    type: 8,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
-                    type: 1,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
-                    type: 10,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
-                    type: 13,
-                    argb: -16777216,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
-                    type: 11,
-                    argb: 2135951617,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
-                    type: 12,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Frekles_01.dds',
-                    type: 0,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
-                    type: 3,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
-                    type: 14,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
-                    type: 14,
-                    argb: 16777215,
-                },
-                {
-                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
-                    type: 14,
-                    argb: 16777215,
-                },
-            ],
-        },
-        clothes: ['000CEE78', '000E40DF', '000261C1'],
-        weapon: ['0002F2F4'],
-    },
-    [npcEnums_1.NpcHash.Npc_1]: {
-        appearance: {
-            name: 'Эйлунд Сердце Волка',
             isFemale: false,
             raceId: 79686,
             weight: 78,
@@ -32945,9 +33216,8 @@ exports.NpcConfig = {
             headpartIds: [333359, 333361, 651426, 332822, 332886, 95496, 948973, 333064],
             headTextureSetId: 242977,
             options: [
-                0.20000000298023224, -0.5, -0.30000001192092896, 0.30000001192092896, -0.4000000059604645, 0.30000001192092896, 0.5, 0,
-                -0.05999999865889549, -1, 0, -0.23999999463558197, 0.6600000262260437, 0.1599999964237213, -0.3400000035762787, -0.4000000059604645,
-                0.18000000715255737, -0.6399999856948853, 0,
+                0.200298023224, -0.5, -0.301192092896, 0.301192092896, -0.40059604645, 0.301192092896, 0.5, 0, -0.05999999865889549, -1, 0,
+                -0.23999999463558197, 0.6600000262260437, 0.1599999964237213, -0.34035762787, -0.40059604645, 0.180715255737, -0.6399999856948853, 0,
             ],
             presets: [1, -1, 1, 19],
             tints: [
@@ -33123,24 +33393,20 @@ exports.NpcConfig = {
                 },
             ],
             skinColor: 13021352,
+            name: 'Эйлунд Сердце Волка',
         },
-        clothes: ['0001BC82', '0010E2CE', '000B145B'],
-        weapon: [],
+        clothes: ['000CEE78', '000E40DF', '000261C1'],
+        weapon: ['0002F2F4'],
     },
-    [npcEnums_1.NpcHash.Npc_2]: {
+    [npcEnums_1.NpcHash.NPC_MALE_2]: {
         appearance: {
-            name: 'Йорлунд Серая Грива',
             isFemale: false,
             raceId: 79686,
             weight: 0,
             hairColor: 4406574,
             headpartIds: [333359, 333361, 937497, 332799, 95497, 148057, 815370],
             headTextureSetId: 242977,
-            options: [
-                0.4000000059604645, -1, -0.6000000238418579, -0.699999988079071, 0.30000001192092896, -0.4000000059604645, 0.5, -0.6000000238418579,
-                -0.05999999865889549, -0.699999988079071, 0.30000001192092896, 0.20000000298023224, 0.30000001192092896, 0.20000000298023224,
-                -0.30000001192092896, -0.4000000059604645, -0.5, -0.6399999856948853, 0,
-            ],
+            options: [0.4, -1, -0.6, -0.7, 0.3, -0.4, 0.5, -0.6, -0.06, -0.7, 0.3, 0.2, 0.3, 0.2, -0.3, -0.4, -0.5, -0.639, 0],
             presets: [1, -1, 4, 19],
             tints: [
                 {
@@ -33315,13 +33581,13 @@ exports.NpcConfig = {
                 },
             ],
             skinColor: 10978938,
+            name: 'Лирд Грейвинд',
         },
-        clothes: ['0010CFF0', '000261C1', '000CEE82'],
-        weapon: [],
+        clothes: ['0005B69F', '000646AB', '0001BE1B'],
+        weapon: ['000139A7'],
     },
-    [npcEnums_1.NpcHash.Npc_3]: {
+    [npcEnums_1.NpcHash.NPC_MALE_3]: {
         appearance: {
-            name: 'Сайк',
             isFemale: false,
             raceId: 79686,
             weight: 100,
@@ -33329,9 +33595,8 @@ exports.NpcConfig = {
             headpartIds: [333359, 333361, 546143, 916484, 916418, 95497, 148036, 815472],
             headTextureSetId: 242977,
             options: [
-                0.4000000059604645, 0.30000001192092896, 0.4000000059604645, 0.5, 0.30000001192092896, 0.4000000059604645, 0.5, -0.20000000298023224,
-                -0.10000000149011612, 0.20000000298023224, 0.30000001192092896, -0.23999999463558197, -0.10000000149011612, -0.30000001192092896,
-                0.30000001192092896, 0.5, 0.5, 0.20000000298023224, 0,
+                0.40059604645, 0.301192092895, 0.40059604645, 0.5, 0.301192092895, 0.40059604645, 0.5, -0.200298023224, -0.100149011612,
+                0.200298023224, 0.301192092895, -0.23999999463558197, -0.100149011612, -0.301192092895, 0.301192092895, 0.5, 0.5, 0.200298023224, 0,
             ],
             presets: [1, -1, 1, 19],
             tints: [
@@ -33417,23 +33682,20 @@ exports.NpcConfig = {
                 },
             ],
             skinColor: 12033169,
+            name: 'Йорг Айронглейд',
         },
-        clothes: ['0004223C', '000261C1', '0008698E'],
-        weapon: [],
+        clothes: ['0001BCA7', '0001BC82', '000CEE82'],
+        weapon: ['00013980'],
     },
-    [npcEnums_1.NpcHash.Npc_4]: {
+    [npcEnums_1.NpcHash.NPC_FEMALE_1]: {
         appearance: {
-            name: 'Сириус Седобородый',
             isFemale: true,
             raceId: 79686,
             weight: 40,
             hairColor: 2830643,
             headpartIds: [333347, 333071, 967090, 332104, 331963, 262672, 937361],
             headTextureSetId: 242978,
-            options: [
-                -0.20000000298023224, 0.3, 0, 0, 0, 0.3, 0.20000000298023224, 0, 0, -0.6000000238418579, 0, 0, -0.10000000149011612, -1, 0, 0, 0,
-                -0.5, 0,
-            ],
+            options: [-0.2, 0.3, 0, 0, 0, 0.3, 0.2, 0, 0, -0.6, 0, 0, -0.1, -1, 0, 0, 0, -0.5, 0],
             presets: [10, -1, 5, 4],
             tints: [
                 {
@@ -33513,9 +33775,4740 @@ exports.NpcConfig = {
                 },
             ],
             skinColor: 14540253,
+            name: 'Шоральда Вулфвинд',
         },
-        clothes: ['00107108', '0007BC15'],
+        clothes: ['0001BE1A', '0003452F', '00017696'],
+        weapon: ['000139A7'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_2]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79686,
+            weight: 63,
+            hairColor: 6051920,
+            headpartIds: [333347, 333071, 967090, 961137, 961129, 262696, 937380],
+            headTextureSetId: 242978,
+            options: [
+                -0.100149011612, -0.100149011612, 0.200298023224, 0.5, 0, 0.200298023224, 0.200298023224, 0, 0, 0.100149011612, 0.40059604645,
+                -0.60238418579, 0, 0.100149011612, 0, 0.3, 0, 0, 0,
+            ],
+            presets: [1, -1, 1, 4],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -2236963,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 1445014354,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 1445014354,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 1799554049,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: -12385279,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 1745814592,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 14540253,
+            name: 'Меллина Вайтвинг',
+        },
+        clothes: ['000209A6', '000261BD'],
+        weapon: ['00013982'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_3]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79686,
+            weight: 40,
+            hairColor: 1315864,
+            headpartIds: [333347, 333071, 967090, 331954, 262673, 937378],
+            headTextureSetId: 242978,
+            options: [
+                -0.3, 0.3, 0.3, -0.40059604645, 0.100149011612, -0.3, 0.200298023224, -0.5, 0, -0.200298023224, -0.200298023224, -0.100149011612,
+                -0.200298023224, -0.200298023224, -0.200298023224, -0.200298023224, -0.100149011612, 0, 0,
+            ],
+            presets: [3, -1, 4, 4],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -3289652,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 1923699794,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 1923699794,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 1923699794,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 1118393426,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: -16777216,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: -1683401646,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -1213639598,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 13487564,
+            name: 'Хильда Айронкроу',
+        },
+        clothes: ['0003452E', '000209A5', '000330B3'],
+        weapon: ['00013986'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_4]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79684,
+            weight: 66,
+            hairColor: 1315864,
+            headpartIds: [333360, 333361, 937386, 332812, 332813, 331956, 948972, 815469],
+            headTextureSetId: 333382,
+            options: [
+                0.3, -0.200298023224, 0.200298023224, -0.3, 0.200298023224, -0.200298023224, -0.3999999761581421, 0.200298023224, 0.200298023224,
+                0.200298023224, -0.200298023224, 0.200298023224, -0.100149011612, -0.100149011612, -0.200298023224, -0.200298023224, -0.200298023224,
+                0.200298023224, 0,
+            ],
+            presets: [5, -1, 4, 12],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -4744047,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 12033169,
+            name: 'Йоргил Марцеллин',
+        },
+        clothes: ['0006C1D9', '0001BE1B', '0004223B'],
+        weapon: ['00013980'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_5]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79684,
+            weight: 75,
+            hairColor: 6051920,
+            headpartIds: [333360, 333361, 546143, 332822, 332886, 95496, 148047, 815469],
+            headTextureSetId: 333382,
+            options: [
+                0.200298023224, 0.200298023224, 0.5, 0.200298023224, 0.5, 0.200298023224, -0.3999999761581421, 0.301192092895, 0.100149011612,
+                0.301192092895, 0.301192092895, 0.301192092895, -0.100149011612, -0.100149011612, 0.100149011612, 0.100149011612, 0.100149011612,
+                -0.240953674316, 0,
+            ],
+            presets: [5, -1, 10, 12],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -4744047,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 12033169,
+            name: 'Крагнар Тициан',
+        },
+        clothes: ['000261C0', '000BACD7'],
+        weapon: ['00013986'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_6]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79684,
+            weight: 100,
+            hairColor: 5922665,
+            headpartIds: [333360, 333361, 546143, 332799, 842615, 842617, 148060, 815471],
+            headTextureSetId: 333382,
+            options: [
+                0.100149011612, 0.301192092895, 0.301192092895, 0.301192092895, 0.200298023224, 0.200298023224, -0.3999999761581421, 0.200298023224,
+                0.200298023224, 0.200298023224, 0.40059604645, 0.301192092895, 0.301192092895, 0.301192092895, 0.200298023224, 0.301192092895,
+                0.301192092895, 0.200298023224, 0,
+            ],
+            presets: [9, -1, 3, 12],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -3755864,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 13021352,
+            name: 'Тургир Флавий',
+        },
+        clothes: ['0006FF38', '0006b46C', '000330B3'],
+        weapon: ['00013980'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_4]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79684,
+            weight: 39,
+            hairColor: 6051920,
+            headpartIds: [333341, 333071, 967090, 332106, 331971, 262693, 937340],
+            headTextureSetId: 333384,
+            options: [
+                0.100149011612, 0.200298023224, 0.100149011612, 0.100149011612, 0.100149011612, 0.200298023224, 0, -0.3399999737739563, 0,
+                0.200298023224, 0.301192092895, 0.200298023224, 0.200298023224, 0.100149011612, 0.100149011612, 0.100149011612, 0.100149011612, 0, 0,
+            ],
+            presets: [3, -1, 4, 2],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -2236963,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 1923699794,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 1923699794,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 2007585874,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadImperial_Lips.dds',
+                    type: 1,
+                    argb: -967833343,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -1213639598,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 14540253,
+            name: 'Ринида Песценний',
+        },
+        clothes: ['0006C1D8', '000C5D12', '00017696'],
+        weapon: ['0001397e'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_5]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79684,
+            weight: 39,
+            hairColor: 6051920,
+            headpartIds: [333341, 333071, 967090, 961136, 961128, 262695, 937377],
+            headTextureSetId: 333384,
+            options: [
+                0.200298023224, 0.301192092895, 0.200298023224, 0.301192092895, 0.200298023224, 0.301192092895, 0, -0.100149011612, -0.301192092895,
+                0, 0.100149011612, 0, 0.301192092895, 0.301192092895, 0.301192092895, 0.40059604645, 0.301192092895, -0.40059604645, 0,
+            ],
+            presets: [2, -1, 1, 2],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -2236963,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadImperial_Lips.dds',
+                    type: 1,
+                    argb: 1799554049,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -1051719423,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 14540253,
+            name: 'Урвия Сабин',
+        },
+        clothes: ['0006C1D9', '0001BE1B', '0004223B'],
+        weapon: ['00013986'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_6]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79684,
+            weight: 39,
+            hairColor: 6051920,
+            headpartIds: [333341, 333071, 937520, 961141, 961133, 262695, 937377],
+            headTextureSetId: 333384,
+            options: [
+                0, 0.100149011612, 0, 0.100149011612, 0.100149011612, 0.100149011612, 0, 0, -0.100149011612, 0.100149011612, 0, 0.200298023224,
+                -0.100149011612, -0.40059604645, -0.301192092895, 0.100149011612, 0.200298023224, -0.200298023224, 0,
+            ],
+            presets: [2, -1, 16, 2],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -2236963,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadImperial_Lips.dds',
+                    type: 1,
+                    argb: 1799554049,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 14540253,
+            name: 'Илонель Марций',
+        },
+        clothes: ['000261C0', '000BACD7'],
+        weapon: ['00013980'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_7]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79687,
+            weight: 80,
+            hairColor: 4406574,
+            headpartIds: [333354, 501248, 937516, 937516, 267598, 267603, 387055, 802016, 599306, 331903],
+            headTextureSetId: 501247,
+            options: [
+                0.200298023224, -0.100149011612, 0.100149011612, 0.40059604645, 0.200298023224, 0.200298023224, 0.5, -0.301192092895,
+                0.5199999809265137, 0.200298023224, 0.200298023224, 0.100149011612, 0.200298023224, 0.100149011612, 0.100149011612, 0.100149011612,
+                0.100149011612, 0, 0,
+            ],
+            presets: [21, -1, 21, 26],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: 262667,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: -13688813,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 8355711,
+            name: 'Варг Багдар',
+        },
+        clothes: ['0005B6A1', '00080699', '00017696'],
+        weapon: ['00013986'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_8]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79687,
+            weight: 100,
+            hairColor: 1315864,
+            headpartIds: [333354, 501248, 937516, 937516, 387093, 387060, 387055, 95493, 599306, 331904],
+            headTextureSetId: 501247,
+            options: [
+                0.301192092895, 0.301192092895, 0.40059604645, 0.60238418579, 1, 0, 0.5, 0.301192092895, 0.200298023224, -1, 0.5, 0.200298023224,
+                0.200298023224, -0.5, 0.301192092895, 1, 0.5, 0.200298023224, 0,
+            ],
+            presets: [22, -1, 21, 26],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -12629959,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: -13289662,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: -13688813,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: -16777216,
+                },
+            ],
+            skinColor: 4147257,
+            name: 'Цин Молаг',
+        },
+        clothes: ['0006FF38', '0006b46C', '000330B3'],
+        weapon: ['0001397e'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_9]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79687,
+            weight: 36,
+            hairColor: 1315864,
+            headpartIds: [333354, 501248, 937516, 937516, 387096, 387102, 387055, 95493, 599306, 331904],
+            headTextureSetId: 501247,
+            options: [
+                0.5, -0.100149011612, -0.200298023224, -0.8011920929, -0.100149011612, 0.200298023224, 0.5, 0.301192092895, 0.200298023224, -1, 0.5,
+                0.200298023224, 0.200298023224, -0.5, 0.301192092895, 1, 0.5, 0.200298023224, 0,
+            ],
+            presets: [22, -1, 21, 26],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: 1011574,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 1799554049,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: -13289662,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: -13688813,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 8355711,
+            name: 'Ярдир Лургаш',
+        },
+        clothes: ['0005B6A1', '00080699', '00017696'],
+        weapon: ['0001397e'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_10]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79680,
+            weight: 77,
+            hairColor: 4587520,
+            headpartIds: [333332, 333068, 733126, 865101, 865149, 333066, 885496],
+            headTextureSetId: 0,
+            options: [
+                0.301192092895, 0.301192092895, 0.301192092895, 0.200298023224, 0.100149011612, 0.200298023224, 0, 0.200298023224, 0.200298023224,
+                0.40059604645, 0.200298023224, 0.200298023224, 0, 0, 0, 0, 0, 0, 0,
+            ],
+            presets: [0, -1, 1, 0],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -1472836063,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianForehead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketUpper.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketLower.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeLiner.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNostrils01.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLaughline.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeks.dds',
+                    type: 2,
+                    argb: -11892411,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeksLower.dds',
+                    type: 9,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianChin.dds',
+                    type: 11,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNeck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes05.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes06.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianDirt.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 5201473,
+            name: 'Белин Ловящий-Теней',
+        },
+        clothes: ['0006FF38', '0006b46C', '000330B3'],
+        weapon: ['00013982'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_11]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79680,
+            weight: 35,
+            hairColor: 10126081,
+            headpartIds: [333332, 333068, 733141, 865106, 333066, 885496],
+            headTextureSetId: 0,
+            options: [
+                0.200298023224, 0.200298023224, -0.200298023224, -0.100149011612, -0.200298023224, -0.301192092895, 0, 0, 0, 0.200298023224,
+                -0.200298023224, 0.100149011612, -0.5, -0.100149011612, -0.40059604645, -0.40059604645, 0.301192092895, 0, 0,
+            ],
+            presets: [0, -1, 0, 0],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: 2062673756,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianForehead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketUpper.dds',
+                    type: 4,
+                    argb: -11892411,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketLower.dds',
+                    type: 5,
+                    argb: -11892411,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeLiner.dds',
+                    type: 3,
+                    argb: -923812,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNostrils01.dds',
+                    type: 10,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLaughline.dds',
+                    type: 8,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeksLower.dds',
+                    type: 9,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianChin.dds',
+                    type: 11,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNeck.dds',
+                    type: 12,
+                    argb: -923812,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes05.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes06.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianDirt.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 11907438,
+            name: 'Урсин Быстрый-Ястреб',
+        },
+        clothes: ['000261C0', '000BACD7'],
+        weapon: ['00013982'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_12]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79680,
+            weight: 80,
+            hairColor: 4587520,
+            headpartIds: [333332, 333068, 733141, 865102, 333066, 885496],
+            headTextureSetId: 0,
+            options: [
+                0.200298023224, 0.200298023224, -0.200298023224, -0.100149011612, -0.200298023224, -0.301192092895, 0, 0.40059604645, 0.40059604645,
+                0.60238418579, 0.200298023224, 0.301192092895, 0.301192092895, 0.301192092895, 0.301192092895, 0, 0.301192092895, 0.40059604645, 0,
+            ],
+            presets: [0, -1, 3, 0],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: 1800046917,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianForehead.dds',
+                    type: 13,
+                    argb: -13218271,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketUpper.dds',
+                    type: 4,
+                    argb: -11892411,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketLower.dds',
+                    type: 5,
+                    argb: -11892411,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeLiner.dds',
+                    type: 3,
+                    argb: -923812,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNostrils01.dds',
+                    type: 10,
+                    argb: -11892411,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLaughline.dds',
+                    type: 8,
+                    argb: -11892411,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeks.dds',
+                    type: 2,
+                    argb: -13218271,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeksLower.dds',
+                    type: 9,
+                    argb: -11892411,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianChin.dds',
+                    type: 11,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNeck.dds',
+                    type: 12,
+                    argb: -13218271,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes05.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes06.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianDirt.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 6914918,
+            name: 'Дорнал Ловящий-Цветы',
+        },
+        clothes: ['00017695', '000D1921', '00017696'],
+        weapon: ['00013982'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_7]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79680,
+            weight: 68,
+            hairColor: 10126081,
+            headpartIds: [333331, 599309, 732696, 666870, 923194, 667311, 885494],
+            headTextureSetId: 0,
+            options: [
+                0.301192092895, 0.200298023224, -0.200298023224, 0.100149011612, 0.200298023224, 0.100149011612, 0, 0, 0, 0.301192092895, 0.5, 0.5,
+                0.5, 0.40059604645, 0.200298023224, 0.301192092895, 0.200298023224, 0, 0,
+            ],
+            presets: [2, -1, 2, 0],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: 2062673756,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianForehead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketUpper.dds',
+                    type: 4,
+                    argb: -741015552,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketLower.dds',
+                    type: 5,
+                    argb: -741015552,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeLiner.dds',
+                    type: 3,
+                    argb: -12385279,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNostrils01.dds',
+                    type: 10,
+                    argb: -923812,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLaughline.dds',
+                    type: 8,
+                    argb: -923812,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeks.dds',
+                    type: 2,
+                    argb: -11892411,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeksLower.dds',
+                    type: 9,
+                    argb: -11892411,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLips.dds',
+                    type: 1,
+                    argb: -923812,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianChin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNeck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes05.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianDirt.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 11907438,
+            name: 'Риннель Шепчущий-Змей',
+        },
+        clothes: ['0006C1D8', '000C5D12', '00017696'],
+        weapon: ['000139A7'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_8]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79680,
+            weight: 56,
+            hairColor: 10126081,
+            headpartIds: [333331, 599309, 733140, 865095, 667311, 885494],
+            headTextureSetId: 0,
+            options: [
+                0, -0.301192092895, -0.40059604645, -0.301192092895, -0.100149011612, -0.200298023224, 0, 0.200298023224, 0, 0.301192092895, 0.5, 0.5,
+                0.5, 0.40059604645, 0.200298023224, 0.301192092895, 0.200298023224, 0, 0,
+            ],
+            presets: [3, -1, 3, 0],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -1472836063,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianForehead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketUpper.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketLower.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeLiner.dds',
+                    type: 3,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNostrils01.dds',
+                    type: 10,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLaughline.dds',
+                    type: 8,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeks.dds',
+                    type: 2,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeksLower.dds',
+                    type: 9,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLips.dds',
+                    type: 1,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianChin.dds',
+                    type: 11,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNeck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes05.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianDirt.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 5201473,
+            name: 'Мелия Скользящий-Огонь',
+        },
+        clothes: ['0006C1D9', '0001BE1B', '0004223B'],
+        weapon: ['00013980'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_9]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79680,
+            weight: 15,
+            hairColor: 10126081,
+            headpartIds: [333331, 599309, 733140, 923197, 667311, 885494],
+            headTextureSetId: 0,
+            options: [
+                0.699999988079071, 0.301192092895, -0.40059604645, 0.100149011612, 0.40059604645, -0.60238418579, 0, -0.200298023224, -0.200298023224,
+                0.200298023224, -0.301192092895, -0.40059604645, 0.200298023224, 0.100149011612, -0.301192092895, 0.100149011612, 0.5, 0, 0,
+            ],
+            presets: [3, -1, 5, 0],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -1344099088,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianForehead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketUpper.dds',
+                    type: 4,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeSocketLower.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianEyeLiner.dds',
+                    type: 3,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNostrils01.dds',
+                    type: 10,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLaughline.dds',
+                    type: 8,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeks.dds',
+                    type: 2,
+                    argb: -741015552,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianCheeksLower.dds',
+                    type: 9,
+                    argb: -12385279,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianLips.dds',
+                    type: 1,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianChin.dds',
+                    type: 11,
+                    argb: -12385279,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianNeck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianStripes05.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\ArgonianDirt.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 12820172,
+            name: 'Жасмин Плывущий-Поток',
+        },
+        clothes: ['000F1229', '0004223D', '0004223B'],
+        weapon: ['00013986'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_13]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79681,
+            weight: 100,
+            hairColor: 1711132,
+            headpartIds: [333363, 333361, 651425, 546143, 332816, 916282, 843121, 1016274, 815395],
+            headTextureSetId: 853791,
+            options: [
+                0.301192092895, -0.5, -0.5, 0.8011920929, -1, -0.301192092895, -0.42, -0.699999988079071, -0.100149011612, -1, 0,
+                -0.301192092895, -0.200298023224, 0.301192092895, 0.8999999761581421, -0.200298023224, 0.301192092895, -0.60238418579, 0,
+            ],
+            presets: [4, -1, 1, 9],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -8810085,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: -1472003071,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: -752800942,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 1410270272,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -1828716544,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 7364950,
+            name: 'Юрвал Ариллас',
+        },
+        clothes: ['000261C0', '000BACD7'],
+        weapon: ['00013986'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_14]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79682,
+            weight: 38,
+            hairColor: 1053202,
+            headpartIds: [333356, 333361, 546143, 967601, 967034, 95498, 342311, 333064],
+            headTextureSetId: 103310,
+            options: [
+                0.301192092895, 0.40059604645, 0.301192092895, 0.40059604645, 0.200298023224, 0.301192092895, 0.5, 0.200298023224, 0.100149011612,
+                0.200298023224, 0.40059604645, 0.301192092895, 0.301192092895, 0.301192092895, 0.200298023224, 0.200298023224, 0.200298023224,
+                0.200298023224, 0,
+            ],
+            presets: [3, -1, 8, 8],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -8021341,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: -752800942,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: -752800942,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 1410270272,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: -1912140739,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 8755875,
+            name: 'Стор Мавинес',
+        },
+        clothes: ['000F1229', '0004223D', '0004223B'],
+        weapon: ['000139A7'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_15]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79682,
+            weight: 65,
+            hairColor: 2565667,
+            headpartIds: [333356, 333361, 546143, 331900, 331820, 95498, 342311, 815394],
+            headTextureSetId: 103310,
+            options: [
+                0.40059604645, -0.8999999761581421, -0.40059604645, -0.40059604645, -0.40059604645, -0.5, 0.5, 0.40059604645, 0.301192092895,
+                0.40059604645, 0.301192092895, 0.40059604645, 0.200298023224, 0.301192092895, 0.40059604645, 0.200298023224, 0.200298023224,
+                0.301192092895, 0,
+            ],
+            presets: [1, -1, 11, 8],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -8810085,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: -752800942,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: -752800942,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -1090519040,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 7967131,
+            name: 'Юджор Ралс',
+        },
+        clothes: ['0006C1DA', '000E0DD4'],
+        weapon: ['0001397e'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_10]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79682,
+            weight: 69,
+            hairColor: 1711132,
+            headpartIds: [333340, 333071, 967090, 576134, 576150, 979741, 342314, 937361],
+            headTextureSetId: 103312,
+            options: [
+                0.301192092895, -0.200298023224, -0.301192092895, 0.100149011612, 0.301192092895, -0.200298023224, 0.301192092895, 0.200298023224,
+                0.301192092895, 0.200298023224, -0.301192092895, -0.200298023224, 0.100149011612, 0.200298023224, 0, 0.100149011612, 0, 0, 0,
+            ],
+            presets: [6, -1, 8, 3],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -7818810,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: -16777216,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHighElf_Lips.dds',
+                    type: 1,
+                    argb: -1912140739,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: -1683401646,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -2075982847,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 8958406,
+            name: 'Урва Мавелен',
+        },
+        clothes: ['0006C1D8', '000C5D12', '00017696'],
+        weapon: ['0001397e'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_11]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79682,
+            weight: 69,
+            hairColor: 1711132,
+            headpartIds: [333340, 333071, 967090, 967624, 967614, 979741, 342314, 937361],
+            headTextureSetId: 103312,
+            options: [
+                -0.5, 0.301192092895, -0.100149011612, 0.40059604645, -0.100149011612, 0.200298023224, 0.301192092895, -0.301192092895, 0, 0.5,
+                0.100149011612, 0.200298023224, 0.301192092895, -0.40059604645, 0.5, -0.301192092895, 0.200298023224, -0.200298023224, 0,
+            ],
+            presets: [9, -1, 9, 3],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -7818810,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 1445014354,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 1445014354,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHighElf_Lips.dds',
+                    type: 1,
+                    argb: 1494156352,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 1745814592,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 8958406,
+            name: 'Вал Раленис',
+        },
+        clothes: ['0006C1DA', '000E0DD4'],
+        weapon: ['00013980'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_12]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79682,
+            weight: 34,
+            hairColor: 1711132,
+            headpartIds: [333340, 333071, 937535, 967626, 967616, 979741, 342314, 937361],
+            headTextureSetId: 103312,
+            options: [
+                0.100149011612, -0.100149011612, -0.100149011612, -0.100149011612, -0.100149011612, 0.200298023224, 0.301192092895, -0.60238418579,
+                0.200298023224, 0.60238418579, 0.301192092895, -0.301192092895, -0.200298023224, 0.5, 0.100149011612, 0.40059604645, -0.301192092895,
+                0.200298023224, 0,
+            ],
+            presets: [9, -1, 9, 4],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -11176312,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 1445014354,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 1445014354,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHighElf_Lips.dds',
+                    type: 1,
+                    argb: 1494156352,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 1745814592,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 5600904,
+            name: 'Лилель Раленис',
+        },
+        clothes: ['000261C0', '000BACD7'],
+        weapon: ['00013980'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_16]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79681,
+            weight: 64,
+            hairColor: 1315864,
+            headpartIds: [333363, 333361, 937386, 332816, 332817, 95497, 148047, 815469],
+            headTextureSetId: 853791,
+            options: [
+                0.40059604645, 0, 0.100149011612, 0.200298023224, 0.100149011612, 0.200298023224, 0, 0.200298023224, 0.100149011612, 0.200298023224,
+                0.200298023224, 0.200298023224, 0.301192092895, 0.100149011612, -0.301192092895, -0.40059604645, -0.301192092895, 0.301192092895, 0,
+            ],
+            presets: [2, -1, 2, 2],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -4744047,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Frekles_01.dds',
+                    type: 0,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 12033169,
+            name: 'Цовир Денар',
+        },
+        clothes: ['000F8715', '000CEE82', '000CEE84'],
+        weapon: ['000139A7'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_17]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79681,
+            weight: 80,
+            hairColor: 1711132,
+            headpartIds: [333363, 333361, 651426, 332803, 95497, 148047, 815469],
+            headTextureSetId: 853791,
+            options: [
+                0.301192092895, -0.40059604645, 0.100149011612, -0.200298023224, 0.200298023224, -0.301192092895, 0, 0.301192092895, 0.200298023224,
+                0.200298023224, 0.200298023224, 0.100149011612, 0, 0, 0, 0, 0, 0.200298023224, 0,
+            ],
+            presets: [2, -1, 10, 2],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -4744047,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Frekles_01.dds',
+                    type: 0,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 12033169,
+            name: 'Дард Камбер',
+        },
+        clothes: ['0006C1D8', '000C5D12', '00017696'],
+        weapon: ['00013980'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_18]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79681,
+            weight: 67,
+            hairColor: 1711132,
+            headpartIds: [333363, 333361, 546143, 630144, 630149, 563633, 148047, 815469],
+            headTextureSetId: 853791,
+            options: [
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0.200298023224, 0.100149011612, 0.301192092895, 0.40059604645, 0.200298023224, 0.5, 0.200298023224,
+                0.301192092895, 0, 0,
+            ],
+            presets: [1, -1, 1, 2],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -4744047,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Frekles_01.dds',
+                    type: 0,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 12033169,
+            name: 'Чур Морейн',
+        },
+        clothes: ['0006C1D9', '0001BE1B', '0004223B'],
+        weapon: ['00013986'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_13]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79681,
+            weight: 64,
+            hairColor: 1053202,
+            headpartIds: [333345, 333071, 967090, 961138, 961130, 333128, 937377],
+            headTextureSetId: 333383,
+            options: [
+                0.200298023224, 0.301192092895, 0.301192092895, 0.200298023224, 0.200298023224, 0.200298023224, 0, 0.301192092895, 0.100149011612,
+                0.301192092895, 0.301192092895, 0.200298023224, 0.301192092895, 0.301192092895, 0.200298023224, 0.301192092895, 0.200298023224,
+                0.200298023224, 0,
+            ],
+            presets: [2, -1, 2, 2],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -4607062,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadBreton_Lips.dds',
+                    type: 1,
+                    argb: 1621709906,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: -1214032814,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: -1683401646,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -2075982847,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 12170154,
+            name: 'Мелинния Грес',
+        },
+        clothes: ['00017695', '000D1921', '00017696'],
+        weapon: ['0001397e'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_14]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79681,
+            weight: 64,
+            hairColor: 2565667,
+            headpartIds: [333345, 333071, 967090, 332199, 332195, 333128, 937377],
+            headTextureSetId: 333383,
+            options: [
+                -0.40059604645, -0.100149011612, -0.301192092895, -0.40059604645, 0, 0.200298023224, 0, -0.100149011612, 0.40059604645, 0,
+                0.40059604645, -0.100149011612, 0.5, 0.100149011612, -0.100149011612, 0, 0, -0.200298023224, 0,
+            ],
+            presets: [9, -1, 2, 2],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -4607062,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadBreton_Lips.dds',
+                    type: 1,
+                    argb: 1621709906,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: -1214032814,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: -1683401646,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -2075982847,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 12170154,
+            name: 'Калилдия Делакруа',
+        },
+        clothes: ['000261C0', '000BACD7'],
+        weapon: ['00013982'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_15]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79681,
+            weight: 89,
+            hairColor: 2565667,
+            headpartIds: [333345, 333071, 967090, 332150, 332018, 333128, 937361],
+            headTextureSetId: 333383,
+            options: [
+                -0.40059604645, -0.100149011612, -0.301192092895, -0.40059604645, 0, 0.200298023224, 0, 0.200298023224, 0.100149011612,
+                0.200298023224, 0.100149011612, 0.301192092895, -0.100149011612, 0.5, 0.301192092895, 0.200298023224, 0, -0.200298023224, 0,
+            ],
+            presets: [9, -1, 5, 5],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -3224115,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 1923699794,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadBreton_Lips.dds',
+                    type: 1,
+                    argb: 1621709906,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: -1214032814,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: -1683401646,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -2075982847,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 13553101,
+            name: 'Целия Оберже',
+        },
+        clothes: ['000F8713', '00086993', '000CEE84'],
+        weapon: ['00013983'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_19]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79689,
+            weight: 0,
+            hairColor: 3685164,
+            headpartIds: [333355, 333361, 546143, 964597, 964593, 1003529, 333350, 815471],
+            headTextureSetId: 250539,
+            options: [0.200298023224, 0.5, -1, -0.5, 1, 0, 1, 0, -1, 0, 0, -0.100149011612, 0, -0.100149011612, -0.301192092895, 0, 0, 0.5, 0],
+            presets: [10, -1, 33, 19],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -6979217,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -1828716544,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 9797999,
+            name: 'Ур Лаэрис',
+        },
+        clothes: ['00086991', '000CEE82', '000CEE84'],
+        weapon: ['00013981'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_20]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79689,
+            weight: 62,
+            hairColor: 3685164,
+            headpartIds: [333355, 333361, 651426, 967028, 967031, 1003529, 333350, 331904],
+            headTextureSetId: 250539,
+            options: [
+                0.100149011612, 0.200298023224, -0.100149011612, 0.200298023224, -0.200298023224, -0.200298023224, 1, 0.200298023224, -0.200298023224,
+                0.200298023224, 0.40059604645, 0.100149011612, 0, 0.100149011612, 0.200298023224, 0.100149011612, 0, 0.200298023224, 0,
+            ],
+            presets: [4, -1, 7, 3],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -6979217,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -1828716544,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 9797999,
+            name: 'Лонгил Калиндис',
+        },
+        clothes: ['000261C0', '000BACD7'],
+        weapon: ['0001397e'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_21]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79689,
+            weight: 24,
+            hairColor: 3685164,
+            headpartIds: [333355, 333361, 546143, 967602, 967081, 1003529, 333350, 331904],
+            headTextureSetId: 250539,
+            options: [
+                0.200298023224, -0.301192092895, 0.200298023224, 0.301192092895, -0.200298023224, -0.301192092895, 1, 0.200298023224, 0.200298023224,
+                0.40059604645, 0.5, 0.200298023224, 0.301192092895, 0.100149011612, 0.200298023224, 0.100149011612, 0, 0.200298023224, 0,
+            ],
+            presets: [5, -1, 7, 3],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -6979217,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -1828716544,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 9797999,
+            name: 'Чарин Элмаэрис',
+        },
+        clothes: ['00017695', '000D1921', '00017696'],
+        weapon: ['00013982'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_16]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79689,
+            weight: 55,
+            hairColor: 4338989,
+            headpartIds: [333343, 333071, 967090, 576111, 576135, 979743, 333072, 937340],
+            headTextureSetId: 250540,
+            options: [
+                -0.40059604645, -0.200298023224, 0.100149011612, -0.200298023224, 0.200298023224, 0.200298023224, 0, 0.40059604645, -0.40059604645,
+                0.301192092895, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ],
+            presets: [8, -1, 22, 8],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -6979217,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHighElf_Lips.dds',
+                    type: 1,
+                    argb: 1621709906,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 9797999,
+            name: 'Йоринелль Тарандис',
+        },
+        clothes: ['000CEE80', '00086993', '000CEE84'],
+        weapon: ['00013986'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_17]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79689,
+            weight: 55,
+            hairColor: 3685164,
+            headpartIds: [333343, 333071, 967090, 967618, 967608, 979743, 333072, 937340],
+            headTextureSetId: 250540,
+            options: [
+                0.200298023224, 0, 0.200298023224, 0, 0.200298023224, 0.200298023224, 0, 0.40059604645, -0.40059604645, 0, 0.200298023224,
+                0.200298023224, 0, 0, 0, 0, 0, 0, 0,
+            ],
+            presets: [2, -1, 26, 3],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -6979217,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHighElf_Lips.dds',
+                    type: 1,
+                    argb: 1621709906,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -1213639598,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 9797999,
+            name: 'Илон Фиранвил',
+        },
+        clothes: ['00017695', '000D1921', '00017696'],
+        weapon: ['0001397e'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_18]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79689,
+            weight: 29,
+            hairColor: 3685164,
+            headpartIds: [333343, 333071, 967090, 967622, 967612, 979743, 333072, 937340],
+            headTextureSetId: 250540,
+            options: [
+                0.40059604645, 0.100149011612, 0.200298023224, -0.200298023224, 0.200298023224, 0.200298023224, 0, -0.100149011612, 0,
+                -0.301192092895, -0.100149011612, 0.40059604645, 0.100149011612, -0.200298023224, 0.301192092895, -0.200298023224, -0.40059604645,
+                0.200298023224, 0,
+            ],
+            presets: [3, -1, 17, 3],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -8295590,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHighElf_Lips.dds',
+                    type: 1,
+                    argb: -967833343,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -1213639598,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 8481626,
+            name: 'Мелли Фарендор',
+        },
+        clothes: ['0006C1D8', '000C5D12', '00017696'],
+        weapon: ['00013983'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_22]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79688,
+            weight: 90,
+            hairColor: 3154721,
+            headpartIds: [333358, 333361, 546143, 332796, 1067118, 331956, 948973, 815395],
+            headTextureSetId: 853799,
+            options: [
+                0.100149011612, 0, 0.200298023224, 0.301192092895, 0, 0.200298023224, 0, 0.200298023224, 0.200298023224, 0.200298023224,
+                -0.100149011612, 0.200298023224, 0.200298023224, 0, 0.200298023224, 0.200298023224, 0.200298023224, 0.200298023224, 0,
+            ],
+            presets: [2, -1, 2, 2],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -11453131,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadRedguard_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: -13688813,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 5324085,
+            name: 'Вал Дромар',
+        },
+        clothes: ['000261C0', '000BACD7'],
+        weapon: ['00013981'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_23]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79688,
+            weight: 71,
+            hairColor: 3154721,
+            headpartIds: [333358, 333361, 937386, 332887, 332945, 331956, 948973, 815395],
+            headTextureSetId: 853799,
+            options: [
+                0.5, 0.40059604645, 0.40059604645, 0.60238418579, 0.5, 0.5, 0, 0.200298023224, 0.200298023224, 0.5, 0.5, -0.100149011612,
+                -0.301192092895, 0.301192092895, 0.40059604645, 0.200298023224, 0.200298023224, 0.200298023224, 0,
+            ],
+            presets: [2, -1, 2, 3],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -9349308,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadRedguard_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: -13688813,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 7427908,
+            name: 'Эл Десар',
+        },
+        clothes: ['0006C1D9', '0001BE1B', '0004223B'],
+        weapon: ['0001397e'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_24]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79688,
+            weight: 71,
+            hairColor: 3154721,
+            headpartIds: [333358, 333361, 937386, 916483, 916415, 331956, 148057, 815395],
+            headTextureSetId: 853799,
+            options: [
+                0, 0, 0.100149011612, 0.200298023224, 0.100149011612, -0.100149011612, 0, 0.200298023224, 0.40059604645, 0.100149011612,
+                -0.100149011612, 0.301192092895, 0, 0, 0.100149011612, -0.200298023224, 0.40059604645, 0.40059604645, 0,
+            ],
+            presets: [9, -1, 14, 5],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -9349308,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadRedguard_Lips.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHead_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\RedGuardMaleEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: -13688813,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 7427908,
+            name: 'Чур Вескар',
+        },
+        clothes: ['0001BCA7', '0001BC82', '000CEE82'],
+        weapon: ['00013986'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_19]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79688,
+            weight: 60,
+            hairColor: 3685164,
+            headpartIds: [333346, 333071, 967090, 331954, 469271, 937380],
+            headTextureSetId: 333385,
+            options: [
+                0.40059604645, 0.100149011612, 0.301192092895, 0.200298023224, 0.301192092895, 0.200298023224, 0, 0.100149011612, -0.200298023224,
+                -0.100149011612, -0.200298023224, 0, 0, 0.301192092895, 0.301192092895, 0.200298023224, 0.200298023224, 0.200298023224, 0,
+            ],
+            presets: [1, -1, 4, 15],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -9020334,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 1445014354,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 1923699794,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadRedguard_Lips.dds',
+                    type: 1,
+                    argb: -2109537279,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 1745814592,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: -11128558,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 7756882,
+            name: 'Бриненна Герхар',
+        },
+        clothes: ['000261C0', '000BACD7'],
+        weapon: ['000139A7'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_20]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79688,
+            weight: 60,
+            hairColor: 3685164,
+            headpartIds: [333346, 333071, 967090, 332199, 332195, 469274, 937352],
+            headTextureSetId: 333385,
+            options: [
+                0.699999988079071, 0.40059604645, 0.100149011612, -0.200298023224, -0.200298023224, -0.200298023224, 0, 0.100149011612,
+                -0.200298023224, -0.100149011612, -0.200298023224, 0, 0, 0.301192092895, 0.301192092895, 0.200298023224, 0.200298023224,
+                0.200298023224, 0,
+            ],
+            presets: [1, -1, 4, 15],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -9020334,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 1445014354,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 1923699794,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadRedguard_Lips.dds',
+                    type: 1,
+                    argb: -2109537279,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 1745814592,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: -11128558,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 7756882,
+            name: 'Эль Елик',
+        },
+        clothes: ['000261C0', '000BACD7'],
+        weapon: ['00013983'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_21]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79688,
+            weight: 32,
+            hairColor: 3685164,
+            headpartIds: [333346, 333071, 937549, 332106, 331971, 469274, 937352],
+            headTextureSetId: 333385,
+            options: [
+                0.5, 0.301192092895, 0.301192092895, 0, -0.200298023224, 0.40059604645, 0, 0.200298023224, -0.200298023224, 0.200298023224,
+                0.60238418579, 0.200298023224, -0.301192092895, -0.100149011612, 0.100149011612, -0.699999988079071, 0.5, 0.200298023224, 0,
+            ],
+            presets: [2, -1, 4, 15],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -9020334,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 1445014354,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 1923699794,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadRedguard_Lips.dds',
+                    type: 1,
+                    argb: -2109537279,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 1745814592,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: -11128558,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 7756882,
+            name: 'Неллин Жекхар',
+        },
+        clothes: ['0005B69F', '000646AB', '0001BE1B'],
+        weapon: ['00013982'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_25]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79685,
+            weight: 81,
+            hairColor: 2830643,
+            headpartIds: [333334, 333069, 977024, 865137, 976981, 333067],
+            headTextureSetId: 0,
+            options: [
+                0.200298023224, -0.100149011612, 0, 0, -0.40059604645, 0.40059604645, 0, 0.301192092895, 0, 0.5, 0.301192092895, 0.200298023224,
+                0.301192092895, 0.200298023224, 0.200298023224, 0.200298023224, 0.100149011612, 0, 0,
+            ],
+            presets: [0, -1, 3, 2],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -907285525,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitEyeSocketUpper.dds',
+                    type: 4,
+                    argb: -822215171,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitEyeliner.dds',
+                    type: 3,
+                    argb: -16777216,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitEyeSocketLower.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitCheekColor.dds',
+                    type: 2,
+                    argb: -16777216,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitCheekColorLower.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitForehead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitChin.dds',
+                    type: 11,
+                    argb: -2147483648,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitLipColor.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitLaughlines.dds',
+                    type: 8,
+                    argb: -2147483648,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitNeck.dds',
+                    type: 12,
+                    argb: -13688813,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitNose01.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 13948116,
+            name: "Эл Са'раши",
+        },
+        clothes: ['0006C1D8', '000C5D12', '00017696'],
+        weapon: ['0001397e'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_26]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79685,
+            weight: 46,
+            hairColor: 2830643,
+            headpartIds: [333334, 333069, 977024, 865137, 976981, 333067],
+            headTextureSetId: 0,
+            options: [
+                -0.5, 0.100149011612, 0.40059604645, -0.301192092895, 0, -0.200298023224, 0, 0.5, 0.100149011612, 0.100149011612, -0.100149011612,
+                -0.40059604645, 0.40059604645, -0.200298023224, 0.40059604645, 0, -0.100149011612, 0.200298023224, 0,
+            ],
+            presets: [0, -1, 5, 4],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitEyeSocketUpper.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitEyeliner.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitEyeSocketLower.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitCheekColor.dds',
+                    type: 2,
+                    argb: -16777216,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitCheekColorLower.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitForehead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitChin.dds',
+                    type: 11,
+                    argb: -2147483648,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitLipColor.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitLaughlines.dds',
+                    type: 8,
+                    argb: -2147483648,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitNeck.dds',
+                    type: 12,
+                    argb: -13688813,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitNose01.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 16645629,
+            name: "Ярнор Джо'риин",
+        },
+        clothes: ['000F8715', '000CEE82', '000CEE84'],
+        weapon: ['00013986'],
+    },
+    [npcEnums_1.NpcHash.NPC_MALE_27]: {
+        appearance: {
+            isFemale: false,
+            raceId: 79685,
+            weight: 87,
+            hairColor: 2830643,
+            headpartIds: [333334, 333069, 997646, 865123, 865118, 976981, 333067],
+            headTextureSetId: 0,
+            options: [
+                0.5, -0.301192092895, -0.200298023224, 0.301192092895, 0.301192092895, 0.40059604645, 0, 0.699999988079071, 0.301192092895,
+                0.699999988079071, 0.40059604645, 0.100149011612, 0.40059604645, -0.200298023224, 0.40059604645, 0, -0.100149011612, 0.5, 0,
+            ],
+            presets: [2, -1, 0, 4],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitEyeSocketUpper.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitEyeliner.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitEyeSocketLower.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitCheekColor.dds',
+                    type: 2,
+                    argb: -16777216,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitCheekColorLower.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitForehead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitChin.dds',
+                    type: 11,
+                    argb: -2147483648,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitLipColor.dds',
+                    type: 1,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitLaughlines.dds',
+                    type: 8,
+                    argb: -2147483648,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitNeck.dds',
+                    type: 12,
+                    argb: -13688813,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitStripes04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint01.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint02.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint03.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitPaint04.dds',
+                    type: 7,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\KhajiitNose01.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\MaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 16645629,
+            name: "Вадель Джи'шаар",
+        },
+        clothes: ['00017695', '000D1921', '00017696'],
         weapon: [],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_22]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79685,
+            weight: 29,
+            hairColor: 1711132,
+            headpartIds: [333330, 332200, 937380, 997638, 865111, 865112, 977021],
+            headTextureSetId: 242978,
+            options: [
+                0, -0.100149011612, 0, -0.100149011612, 0, -0.100149011612, 0.200298023224, -0.301192092895, -0.200298023224, 0.301192092895, 0.5, 0,
+                0.40059604645, 0.200298023224, 0, 0.200298023224, 0.200298023224, 0.40059604645, 0,
+            ],
+            presets: [3, -1, 2, 0],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 1621709906,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: -16777216,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -912956352,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 16645629,
+            name: "Жанория Ма'раша",
+        },
+        clothes: ['00017695', '000D1921', '00017696'],
+        weapon: ['00013980'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_23]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79685,
+            weight: 60,
+            hairColor: 6051920,
+            headpartIds: [333330, 332200, 937380, 997638, 865108, 865109, 977017],
+            headTextureSetId: 242978,
+            options: [
+                0.301192092895, 0.301192092895, 0.200298023224, 0.40059604645, 0.301192092895, 0.200298023224, 0.200298023224, 0.200298023224,
+                0.301192092895, 0.100149011612, 0, -0.301192092895, 0.40059604645, 0.200298023224, 0, 0.200298023224, 0.200298023224, 0.301192092895,
+                0,
+            ],
+            presets: [3, -1, 0, 0],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 1621709906,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 16645629,
+            name: "Илон Ра'риин",
+        },
+        clothes: ['0006C1D9', '0001BE1B', '0004223B'],
+        weapon: ['00013982'],
+    },
+    [npcEnums_1.NpcHash.NPC_FEMALE_24]: {
+        appearance: {
+            isFemale: true,
+            raceId: 79685,
+            weight: 29,
+            hairColor: 1711132,
+            headpartIds: [333330, 332200, 937380, 997653, 865110, 976983, 977021],
+            headTextureSetId: 242978,
+            options: [
+                0.60238418579, 0.40059604645, 0.5, 0.40059604645, 0.40059604645, 0.40059604645, 0.200298023224, 0.200298023224, 0.200298023224,
+                0.301192092895, 0.5, 0, 0.5, -0.100149011612, -0.301192092895, -0.100149011612, -0.200298023224, 0.100149011612, 0,
+            ],
+            presets: [2, -1, 3, 0],
+            tints: [
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\SkinTone.dds',
+                    type: 6,
+                    argb: -131587,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleUpperEyeSocket.dds',
+                    type: 4,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleLowerEyeSocket.dds',
+                    type: 5,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks.dds',
+                    type: 2,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_Cheeks2.dds',
+                    type: 9,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHead_FrownLines.dds',
+                    type: 8,
+                    argb: -16777216,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadNord_Lips.dds',
+                    type: 1,
+                    argb: 1621709906,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Nose.dds',
+                    type: 10,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_ForeHead.dds',
+                    type: 13,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Chin.dds',
+                    type: 11,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadHuman_Neck.dds',
+                    type: 12,
+                    argb: -16777216,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleNordEyeLinerStyle_01.dds',
+                    type: 3,
+                    argb: -912956352,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_01.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_02.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+                {
+                    texturePath: 'Actors\\Character\\Character Assets\\TintMasks\\FemaleHeadDirt_03.dds',
+                    type: 14,
+                    argb: 16777215,
+                },
+            ],
+            skinColor: 16645629,
+            name: "Олинда Ра'раша",
+        },
+        clothes: ['0006C1D8', '000C5D12', '00017696'],
+        weapon: ['0001397e'],
     },
 };
 
@@ -33531,11 +38524,57 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.NpcHash = void 0;
 var NpcHash;
 (function (NpcHash) {
-    NpcHash["SawmillWorks"] = "npc_sawmillWorks";
-    NpcHash["Npc_1"] = "npc_1";
-    NpcHash["Npc_2"] = "npc_2";
-    NpcHash["Npc_3"] = "npc_3";
-    NpcHash["Npc_4"] = "npc_4";
+    NpcHash["NPC_MALE_1"] = "npc_male_1";
+    NpcHash["NPC_MALE_2"] = "npc_male_2";
+    NpcHash["NPC_MALE_3"] = "npc_male_3";
+    NpcHash["NPC_MALE_4"] = "npc_male_4";
+    NpcHash["NPC_MALE_5"] = "npc_male_5";
+    NpcHash["NPC_MALE_6"] = "npc_male_6";
+    NpcHash["NPC_MALE_7"] = "npc_male_7";
+    NpcHash["NPC_MALE_8"] = "npc_male_8";
+    NpcHash["NPC_MALE_9"] = "npc_male_9";
+    NpcHash["NPC_MALE_10"] = "npc_male_10";
+    NpcHash["NPC_MALE_11"] = "npc_male_11";
+    NpcHash["NPC_MALE_12"] = "npc_male_12";
+    NpcHash["NPC_MALE_13"] = "npc_male_13";
+    NpcHash["NPC_MALE_14"] = "npc_male_14";
+    NpcHash["NPC_MALE_15"] = "npc_male_15";
+    NpcHash["NPC_MALE_16"] = "npc_male_16";
+    NpcHash["NPC_MALE_17"] = "npc_male_17";
+    NpcHash["NPC_MALE_18"] = "npc_male_18";
+    NpcHash["NPC_MALE_19"] = "npc_male_19";
+    NpcHash["NPC_MALE_20"] = "npc_male_20";
+    NpcHash["NPC_MALE_21"] = "npc_male_21";
+    NpcHash["NPC_MALE_22"] = "npc_male_22";
+    NpcHash["NPC_MALE_23"] = "npc_male_23";
+    NpcHash["NPC_MALE_24"] = "npc_male_24";
+    NpcHash["NPC_MALE_25"] = "npc_male_25";
+    NpcHash["NPC_MALE_26"] = "npc_male_26";
+    NpcHash["NPC_MALE_27"] = "npc_male_27";
+    NpcHash["NPC_FEMALE_1"] = "npc_female_1";
+    NpcHash["NPC_FEMALE_2"] = "npc_female_2";
+    NpcHash["NPC_FEMALE_3"] = "npc_female_3";
+    NpcHash["NPC_FEMALE_4"] = "npc_female_4";
+    NpcHash["NPC_FEMALE_5"] = "npc_female_5";
+    NpcHash["NPC_FEMALE_6"] = "npc_female_6";
+    NpcHash["NPC_FEMALE_7"] = "npc_female_7";
+    NpcHash["NPC_FEMALE_8"] = "npc_female_8";
+    NpcHash["NPC_FEMALE_9"] = "npc_female_9";
+    NpcHash["NPC_FEMALE_10"] = "npc_female_10";
+    NpcHash["NPC_FEMALE_11"] = "npc_female_11";
+    NpcHash["NPC_FEMALE_12"] = "npc_female_12";
+    NpcHash["NPC_FEMALE_13"] = "npc_female_13";
+    NpcHash["NPC_FEMALE_14"] = "npc_female_14";
+    NpcHash["NPC_FEMALE_15"] = "npc_female_15";
+    NpcHash["NPC_FEMALE_16"] = "npc_female_16";
+    NpcHash["NPC_FEMALE_17"] = "npc_female_17";
+    NpcHash["NPC_FEMALE_18"] = "npc_female_18";
+    NpcHash["NPC_FEMALE_19"] = "npc_female_19";
+    NpcHash["NPC_FEMALE_20"] = "npc_female_20";
+    NpcHash["NPC_FEMALE_21"] = "npc_female_21";
+    NpcHash["NPC_FEMALE_22"] = "npc_female_22";
+    NpcHash["NPC_FEMALE_23"] = "npc_female_23";
+    NpcHash["NPC_FEMALE_24"] = "npc_female_24";
 })(NpcHash = exports.NpcHash || (exports.NpcHash = {}));
 
 
@@ -33631,7 +38670,7 @@ var PersonHealthEvent;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DEFAULT_SPEED_MULT = exports.MINIMUM_HEALTH_OF_PLAYER = exports.MAXIMUM_HEALTH_OF_PLAYER = exports.TIME_TO_RECOVERY_STAMIN = exports.RECOVERY_STAMIN_PER_SECOND = exports.REQUIRED_STAMINA_FOR_BLOCK = exports.REQUIRED_STAMINA_FOR_DODGING = exports.REQUIRED_STAMINA_FOR_SPRINT_PER_SECOND = exports.REQUIRED_STAMINA_FOR_JUMP = exports.REQUIRED_STAMIN_FOR_ATTACK = exports.MINIMUM_PLAYER_STAMIN = exports.MAXIMUM_PLAYER_STAMIN = exports.StatsType = exports.MoneyType = void 0;
+exports.DEFAULT_SPEED_MULT = exports.MINIMUM_HEALTH_OF_PLAYER = exports.MAXIMUM_HEALTH_OF_PLAYER = exports.TIME_TO_RECOVERY_STAMIN = exports.RECOVERY_STAMIN_PER_SECOND = exports.REQUIRED_STAMINA_FOR_BLOCK = exports.REQUIRED_STAMINA_FOR_DODGING = exports.REQUIRED_STAMINA_FOR_SPRINT_PER_SECOND = exports.REQUIRED_STAMINA_FOR_DODGE = exports.REQUIRED_STAMINA_FOR_JUMP = exports.REQUIRED_STAMIN_FOR_ATTACK = exports.MINIMUM_PLAYER_STAMIN = exports.MAXIMUM_PLAYER_STAMIN = exports.StatsType = exports.MoneyType = void 0;
 var MoneyType;
 (function (MoneyType) {
     MoneyType[MoneyType["CASH"] = 0] = "CASH";
@@ -33646,13 +38685,14 @@ exports.MAXIMUM_PLAYER_STAMIN = 100;
 exports.MINIMUM_PLAYER_STAMIN = 0;
 exports.REQUIRED_STAMIN_FOR_ATTACK = 5;
 exports.REQUIRED_STAMINA_FOR_JUMP = 5;
+exports.REQUIRED_STAMINA_FOR_DODGE = 10;
 exports.REQUIRED_STAMINA_FOR_SPRINT_PER_SECOND = 7;
 exports.REQUIRED_STAMINA_FOR_DODGING = 10;
 exports.REQUIRED_STAMINA_FOR_BLOCK = 5;
 exports.RECOVERY_STAMIN_PER_SECOND = 5;
 exports.TIME_TO_RECOVERY_STAMIN = 2 * 1000;
 exports.MAXIMUM_HEALTH_OF_PLAYER = 100;
-exports.MINIMUM_HEALTH_OF_PLAYER = 1;
+exports.MINIMUM_HEALTH_OF_PLAYER = 0;
 exports.DEFAULT_SPEED_MULT = 100;
 
 
@@ -34119,7 +39159,7 @@ var WeddingResponseEvents;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.MineGameEvents = exports.HoneyFactoryEvents = exports.SawmillGameEvents = exports.ChooseWorkTypeEvents = exports.FishingWorkEvents = exports.FishingGameEvents = void 0;
+exports.MineGameEvents = exports.HoneyFactoryEvents = exports.SawmillGameEvents = exports.FishingWorkEvents = exports.FishingGameEvents = void 0;
 var FishingGameEvents;
 (function (FishingGameEvents) {
     FishingGameEvents["Fail"] = "fishingGame:fail";
@@ -34130,12 +39170,6 @@ var FishingWorkEvents;
     FishingWorkEvents["StartFishing"] = "fishingWork:startFishing";
     FishingWorkEvents["StopFishing"] = "fishingWork:stopFishing";
 })(FishingWorkEvents = exports.FishingWorkEvents || (exports.FishingWorkEvents = {}));
-var ChooseWorkTypeEvents;
-(function (ChooseWorkTypeEvents) {
-    ChooseWorkTypeEvents["Close"] = "chooseWorkType:close";
-    ChooseWorkTypeEvents["Start"] = "chooseWorkType:start";
-    ChooseWorkTypeEvents["Dismiss"] = "chooseWorkType:dismiss";
-})(ChooseWorkTypeEvents = exports.ChooseWorkTypeEvents || (exports.ChooseWorkTypeEvents = {}));
 var SawmillGameEvents;
 (function (SawmillGameEvents) {
     SawmillGameEvents["Win"] = "sawmillGame:win";
@@ -34261,6 +39295,22 @@ exports.ZoneConfig = {
                 new Vector3_1.Vector3(136558.9375, -28131.3926, -11634.1982),
                 new Vector3_1.Vector3(135556.1719, -27585.748, -11624.5518),
                 new Vector3_1.Vector3(135791.6563, -27274.8027, -11602.5098),
+            ],
+        },
+        {
+            hash: type_1.PolygonHash.FISHING_ZONE_8,
+            polygon: [
+                new Vector3_1.Vector3(27912.9023, 118563.9688, -13994.2705),
+                new Vector3_1.Vector3(28076.4512, 118902.5469, -13996.3867),
+                new Vector3_1.Vector3(28319.3164, 119153.2656, -13997.835),
+                new Vector3_1.Vector3(28592.293, 119314.0938, -13996.5596),
+                new Vector3_1.Vector3(28789.6406, 119274.3516, -13999.5947),
+                new Vector3_1.Vector3(28756.3984, 118903.0156, -13995.5205),
+                new Vector3_1.Vector3(28164.4805, 118125.8438, -13999.1064),
+                new Vector3_1.Vector3(28367.3359, 117863.625, -13975.5977),
+                new Vector3_1.Vector3(29127.3477, 119225.9219, -13991.1064),
+                new Vector3_1.Vector3(28499.168, 119780.5469, -13958.8018),
+                new Vector3_1.Vector3(27755.3379, 118854.5469, -13986.127),
             ],
         },
     ],
@@ -34792,10 +39842,26 @@ exports.ZoneConfig = {
             ],
             clientCheck: true,
         },
+        {
+            hash: type_1.PolygonHash.GREEN_ZONE_36,
+            polygon: [
+                new Vector3_1.Vector3(-53710.5117, -28264.6992, -1848.6764),
+                new Vector3_1.Vector3(-58867.4492, -30414.5664, -1762.2537),
+                new Vector3_1.Vector3(-58553.4648, -33286.9297, -1807.486),
+                new Vector3_1.Vector3(-57012.5469, -36707.6758, 1095.1566),
+                new Vector3_1.Vector3(-54364.8789, -40062.4922, 1594.548),
+                new Vector3_1.Vector3(-47063.332, -38956.4688, -394.9888),
+                new Vector3_1.Vector3(-44861.625, -36791.707, -1489.9475),
+                new Vector3_1.Vector3(-45299.2031, -33884.1641, -1956.4661),
+                new Vector3_1.Vector3(-49860.0859, -31040.3184, -2455.2478),
+            ],
+            clientCheck: true,
+        },
     ],
     [type_1.ZoneType.DEMORGAN]: [],
     [type_1.ZoneType.JAIL]: [],
     [type_1.ZoneType.HOSPITAL]: [],
+    [type_1.ZoneType.CIVIL_WAR]: [],
 };
 
 
@@ -34831,6 +39897,7 @@ var ZoneType;
     ZoneType[ZoneType["DEMORGAN"] = 2] = "DEMORGAN";
     ZoneType[ZoneType["JAIL"] = 3] = "JAIL";
     ZoneType[ZoneType["HOSPITAL"] = 4] = "HOSPITAL";
+    ZoneType[ZoneType["CIVIL_WAR"] = 5] = "CIVIL_WAR";
 })(ZoneType = exports.ZoneType || (exports.ZoneType = {}));
 var PolygonHash;
 (function (PolygonHash) {
@@ -34841,11 +39908,7 @@ var PolygonHash;
     PolygonHash["FISHING_ZONE_5"] = "fishing_zone_5";
     PolygonHash["FISHING_ZONE_6"] = "fishing_zone_6";
     PolygonHash["FISHING_ZONE_7"] = "fishing_zone_7";
-    PolygonHash["DEMORGAN_ZONE"] = "demorgan_zone";
-    PolygonHash["JAIL_ZONE_1"] = "jail_zone_1";
-    PolygonHash["HOSPITAL_ZONE_1"] = "hospital_zone_1";
-    PolygonHash["HOSPITAL_ZONE_2"] = "hospital_zone_2";
-    PolygonHash["HOSPITAL_ZONE_3"] = "hospital_zone_3";
+    PolygonHash["FISHING_ZONE_8"] = "fishing_zone_8";
     PolygonHash["GREEN_ZONE_1"] = "green_zone_1";
     PolygonHash["GREEN_ZONE_2"] = "green_zone_2";
     PolygonHash["GREEN_ZONE_3"] = "green_zone_3";
@@ -34881,6 +39944,7 @@ var PolygonHash;
     PolygonHash["GREEN_ZONE_33"] = "green_zone_33";
     PolygonHash["GREEN_ZONE_34"] = "green_zone_34";
     PolygonHash["GREEN_ZONE_35"] = "green_zone_35";
+    PolygonHash["GREEN_ZONE_36"] = "green_zone_36";
 })(PolygonHash = exports.PolygonHash || (exports.PolygonHash = {}));
 
 
@@ -35003,14 +40067,24 @@ exports.HeadPartsExtraSlotsConfig = {
     [type_1.Race.Argonian]: {
         [Genders_1.Gender.Male]: {
             2: [],
-            3: [865149, 865146, 865150],
+            3: [
+                865149, 865146, 865150, 4261431535, 4261431536, 4261431534, 4261431345, 4261431309, 4261431539, 4261431537, 4261431545, 4261431306,
+                4261431311, 4261431344, 4261431343, 4261431342, 4261431341, 4261431351, 4261431533, 4261431675, 4261431554, 4261431540, 4261431566,
+                4261431538, 4261432419, 4261431559, 4261431564, 4261431563, 4261431547, 4261431530, 4261431790, 4261431690, 4261431586, 4261431585,
+                4261431584, 4261431583, 4261431582, 4261431581, 4261431579,
+            ],
             4: [],
             5: [],
             6: [],
         },
         [Genders_1.Gender.Female]: {
             2: [],
-            3: [923192, 865147, 865148, 923196, 923195, 923194, 923193],
+            3: [
+                923192, 865147, 865148, 923196, 923195, 923194, 923193, 4261431322, 4261431324, 4261431328, 4261431327, 4261431349, 4261431348,
+                4261431336, 4261431353, 4261431339, 4261431347, 4261431358, 4261431357, 4261431667, 4261431360, 4261432420, 4261432424, 4261431362,
+                4261431455, 4261431463, 4261431460, 4261431464, 4261431796, 4261431780, 4261431442, 4261431441, 4261431371, 4261431370, 4261431435,
+                4261431433, 4261431382, 4261431432, 4261431381,
+            ],
             4: [],
             5: [],
             6: [],
@@ -35021,7 +40095,11 @@ exports.HeadPartsExtraSlotsConfig = {
             2: [651406, 148024, 147503],
             3: [
                 630147, 630148, 630149, 333061, 332985, 332968, 332945, 332886, 332819, 332817, 332809, 332807, 332815, 332813, 332811, 916273,
-                916274, 916275, 916282, 916415, 916418, 916423, 916479,
+                916274, 916275, 916282, 916415, 916418, 916423, 916479, 201413082, 201388129, 201364626, 201982876, 201982884, 202038336, 202041118,
+                201443509, 202038338, 201364628, 201379838, 201413070, 201669268, 201447672, 201444891, 201356348, 201450442, 201450440, 201382598,
+                201443507, 201691362, 201433825, 202038334, 201413072, 202038340, 201357728, 201774281, 202038342, 201413074, 201631842, 201335567,
+                201982880, 201458757, 202020272, 201669270, 201413076, 201450438, 201526616, 201354955, 201982886, 201447670, 201393687, 201388148,
+                201522447, 201485039, 201775681, 201388150, 201634602, 202038344, 201586155, 201825400, 202038346,
             ],
             4: [863896, 863900, 863890, 842944, 842619, 842625, 842621, 842617, 863874, 853350, 863879, 863881],
             5: [],
@@ -35031,7 +40109,11 @@ exports.HeadPartsExtraSlotsConfig = {
             2: [1011571, 1011572],
             3: [
                 332195, 332022, 332021, 332018, 331984, 331971, 331963, 331962, 331961, 331960, 331959, 331958, 961128, 961129, 961130, 961131,
-                961132, 961133, 961134, 961135, 1075989,
+                961132, 961133, 961134, 961135, 1075989, 201415839, 202020222, 201966320, 201530762, 201512635, 201847629, 201662311, 201666456,
+                201666455, 201666458, 201998094, 202020202, 201849008, 201847595, 202027181, 201864205, 201518297, 201623525, 201752177, 202034188,
+                201977358, 201512637, 201759073, 201472599, 201586147, 201975977, 201512639, 201738353, 201580579, 201683080, 201336947, 201608324,
+                202020262, 201637381, 202020266, 201593081, 201731431, 201512724, 201710689, 201512663, 201388131, 201512643, 201652625, 201604180,
+                201993955, 201964937, 201406150, 201692744, 201695502, 202020184, 201395083, 201811592, 201931813,
             ],
             4: [],
             5: [],
@@ -35041,14 +40123,28 @@ exports.HeadPartsExtraSlotsConfig = {
     [type_1.Race.DarkElf]: {
         [Genders_1.Gender.Male]: {
             2: [1011586, 1011582],
-            3: [331840, 331834, 331820, 964593, 967031, 967033, 967034, 967081, 967093, 967264, 967266, 967267, 967268],
+            3: [
+                331840, 331834, 331820, 964593, 967031, 967033, 967034, 967081, 967093, 967264, 967266, 967267, 967268, 201835110, 201828164,
+                201828162, 201982885, 201982878, 201982884, 202038336, 202042497, 201828166, 202042499, 201928168, 201828170, 201828172, 201828174,
+                201828176, 201828178, 201828180, 201828182, 201828184, 201829564, 201443507, 201413082, 201829566, 201433825, 202038334, 201413072,
+                202042501, 201829568, 201774283, 202042503, 201829570, 201829572, 201829574, 201982882, 201829576, 202020274, 201829578, 201833720,
+                201833722, 201833724, 201833726, 201982889, 201833728, 201833730, 201836491, 201836493, 201775683, 201836495, 201388150, 201634602,
+                202042505, 201836497, 201825402, 202042507,
+            ],
             4: [842944, 842619, 842625, 842621, 842617],
             5: [],
             6: [],
         },
         [Genders_1.Gender.Female]: {
             2: [1084963, 1084962],
-            3: [576135, 576137, 576140, 576150, 967608, 967609, 967610, 967611, 967612, 967613, 967614, 967615, 967616, 967617],
+            3: [
+                576135, 576137, 576140, 576150, 967608, 967609, 967610, 967611, 967612, 967613, 967614, 967615, 967616, 967617, 202020222, 201415839,
+                201966322, 201864205, 201530762, 201515531, 201855925, 201662313, 201666456, 201666455, 201666458, 201998094, 202020202, 201849008,
+                201847595, 202027181, 201518297, 201623525, 201752177, 202034188, 201977358, 201512637, 201759073, 201472599, 201586147, 201975977,
+                201512639, 201738353, 201580579, 201683080, 201336947, 201608324, 202020262, 201637381, 202020266, 201593081, 201731431, 201512724,
+                201710689, 201512663, 201388131, 201512643, 201652625, 201604180, 201993955, 201964937, 201406150, 201692744, 201695502, 202020184,
+                201395083, 201811592, 201931813,
+            ],
             4: [],
             5: [],
             6: [],
@@ -35057,14 +40153,28 @@ exports.HeadPartsExtraSlotsConfig = {
     [type_1.Race.HighElf]: {
         [Genders_1.Gender.Male]: {
             2: [1011585, 262682],
-            3: [331840, 331834, 331820, 964593, 989851, 967031, 967033, 967034, 967081, 967093, 967264, 967266, 967267, 967268],
+            3: [
+                331840, 331834, 331820, 964593, 989851, 967031, 967033, 967034, 967081, 967093, 967264, 967266, 967267, 967268, 201835110, 201828164,
+                201828162, 201982885, 201982878, 201982884, 202038336, 202042497, 201828166, 202042499, 201928168, 201828170, 201828172, 201828174,
+                201828176, 201828178, 201828180, 201828182, 201828184, 201829564, 201443507, 201413082, 201829566, 201433825, 202038334, 201413072,
+                202042501, 201829568, 201774283, 202042503, 201829570, 201829572, 201829574, 201982882, 201829576, 202020274, 201829578, 201833720,
+                201833722, 201833724, 201833726, 201982889, 201833728, 201833730, 201836491, 201836493, 201775683, 201836495, 201388150, 201634602,
+                202042505, 201836497, 201825402, 202042507,
+            ],
             4: [842944, 842619, 842625, 842621, 842617],
             5: [],
             6: [],
         },
         [Genders_1.Gender.Female]: {
             2: [1084963, 1084962],
-            3: [576135, 576137, 576140, 576150, 967608, 967609, 967610, 967611, 967612, 967613, 967614, 967615, 967616, 967617],
+            3: [
+                576135, 576137, 576140, 576150, 967608, 967609, 967610, 967611, 967612, 967613, 967614, 967615, 967616, 967617, 202020222, 201415839,
+                201966322, 201864205, 201530762, 201515531, 201855925, 201662313, 201666456, 201666455, 201666458, 201998094, 202020202, 201849008,
+                201847595, 202027181, 201518297, 201623525, 201752177, 202034188, 201977358, 201512637, 201759073, 201472599, 201586147, 201975977,
+                201512639, 201738353, 201580579, 201683080, 201336947, 201608324, 202020262, 201637381, 202020266, 201593081, 201731431, 201512724,
+                201710689, 201512663, 201388131, 201512643, 201652625, 201604180, 201993955, 201964937, 201406150, 201692744, 201695502, 202020184,
+                201395083, 201811592, 201931813,
+            ],
             4: [],
             5: [],
             6: [],
@@ -35075,7 +40185,11 @@ exports.HeadPartsExtraSlotsConfig = {
             2: [651406, 148024, 147503],
             3: [
                 630147, 630148, 630149, 333061, 332985, 332968, 332945, 332886, 332819, 332817, 332809, 332807, 332815, 332813, 332811, 916273,
-                916274, 916275, 916282, 916415, 916418, 916423, 916479,
+                916274, 916275, 916282, 916415, 916418, 916423, 916479, 201413082, 201388129, 201364626, 201982876, 201982884, 202038336, 202041118,
+                201443509, 202038338, 201364628, 201379838, 201413070, 201669268, 201447672, 201444891, 201356348, 201450442, 201450440, 201382598,
+                201443507, 201691362, 201433825, 202038334, 201413072, 202038340, 201357728, 201774281, 202038342, 201413074, 201631842, 201335567,
+                201982880, 201458757, 202020272, 201669270, 201413076, 201450438, 201526616, 201354955, 201982886, 201447670, 201393687, 201388148,
+                201522447, 201485039, 201775681, 201388150, 201634602, 202038344, 201586155, 201825400, 202038346,
             ],
             4: [863896, 863900, 863890, 842944, 842619, 842625, 842621, 842617, 863874, 853350, 863879, 863881],
             5: [],
@@ -35085,7 +40199,11 @@ exports.HeadPartsExtraSlotsConfig = {
             2: [1011571, 1011572],
             3: [
                 332195, 332022, 332021, 332018, 331984, 331971, 331963, 331962, 331961, 331960, 331959, 331958, 961128, 961129, 961130, 961131,
-                961132, 961133, 961134, 961135, 1075989,
+                961132, 961133, 961134, 961135, 1075989, 201415839, 202020222, 201966320, 201530762, 201512635, 201847629, 201662311, 201666456,
+                201666455, 201666458, 201998094, 202020202, 201849008, 201847595, 202027181, 201864205, 201518297, 201623525, 201752177, 202034188,
+                201977358, 201512637, 201759073, 201472599, 201586147, 201975977, 201512639, 201738353, 201580579, 201683080, 201336947, 201608324,
+                202020262, 201637381, 202020266, 201593081, 201731431, 201512724, 201710689, 201512663, 201388131, 201512643, 201652625, 201604180,
+                201993955, 201964937, 201406150, 201692744, 201695502, 202020184, 201395083, 201811592, 201931813,
             ],
             4: [],
             5: [],
@@ -35095,14 +40213,22 @@ exports.HeadPartsExtraSlotsConfig = {
     [type_1.Race.Khajit]: {
         [Genders_1.Gender.Male]: {
             2: [],
-            3: [865116, 976970, 865118, 865119, 865120, 865122, 865128],
+            3: [
+                865116, 976970, 865118, 865119, 865120, 865122, 865128, 4261431619, 4261431618, 4261431617, 976971, 865134, 4261431634, 4261431640,
+                4261432705, 4261432702, 4261432701, 4261432395, 4261432392, 4261431642, 4261431641, 865131, 4261432263, 865133, 4261432268, 865132,
+                4261432211, 4261432441, 4261432440,
+            ],
             4: [865130, 865140, 865141],
             5: [],
             6: [],
         },
         [Genders_1.Gender.Female]: {
             2: [],
-            3: [865112, 865109, 976983, 865114],
+            3: [
+                865112, 865109, 976983, 865114, 4261431614, 4261431613, 4261431612, 4261431611, 976984, 865134, 865128, 4261431615, 4261431637,
+                4261431649, 4261431648, 4261431647, 4261431646, 4261431645, 4261431644, 976985, 865131, 4261432261, 865133, 4261432266, 865132,
+                4261432232, 4261432435, 4261432479, 4261432434,
+            ],
             4: [],
             5: [],
             6: [],
@@ -35113,7 +40239,11 @@ exports.HeadPartsExtraSlotsConfig = {
             2: [651406, 148024, 147503],
             3: [
                 630147, 630148, 630149, 333061, 332985, 332968, 332945, 332886, 332819, 332817, 332809, 332807, 332815, 332813, 332811, 916273,
-                916274, 916275, 916282, 916415, 916418, 916423, 916479,
+                916274, 916275, 916282, 916415, 916418, 916423, 916479, 201413082, 201388129, 201364626, 201982876, 201982884, 202038336, 202041118,
+                201443509, 202038338, 201364628, 201379838, 201413070, 201669268, 201447672, 201444891, 201356348, 201450442, 201450440, 201382598,
+                201443507, 201691362, 201433825, 202038334, 201413072, 202038340, 201357728, 201774281, 202038342, 201413074, 201631842, 201335567,
+                201982880, 201458757, 202020272, 201669270, 201413076, 201450438, 201526616, 201354955, 201982886, 201447670, 201393687, 201388148,
+                201522447, 201485039, 201775681, 201388150, 201634602, 202038344, 201586155, 201825400, 202038346,
             ],
             4: [863896, 863900, 863890, 842944, 842619, 842625, 842621, 842617, 863874, 853350, 863879, 863881],
             5: [],
@@ -35123,7 +40253,11 @@ exports.HeadPartsExtraSlotsConfig = {
             2: [1011571, 1011572],
             3: [
                 332195, 332022, 332021, 332018, 331984, 331971, 331963, 331962, 331961, 331960, 331959, 331958, 961128, 961129, 961130, 961131,
-                961132, 961133, 961134, 961135, 1075989,
+                961132, 961133, 961134, 961135, 1075989, 201415839, 202020222, 201966320, 201530762, 201512635, 201847629, 201662311, 201666456,
+                201666455, 201666458, 201998094, 202020202, 201849008, 201847595, 202027181, 201864205, 201518297, 201623525, 201752177, 202034188,
+                201977358, 201512637, 201759073, 201472599, 201586147, 201975977, 201512639, 201738353, 201580579, 201683080, 201336947, 201608324,
+                202020262, 201637381, 202020266, 201593081, 201731431, 201512724, 201710689, 201512663, 201388131, 201512643, 201652625, 201604180,
+                201993955, 201964937, 201406150, 201692744, 201695502, 202020184, 201395083, 201811592, 201931813,
             ],
             4: [],
             5: [],
@@ -35133,14 +40267,26 @@ exports.HeadPartsExtraSlotsConfig = {
     [type_1.Race.Orc]: {
         [Genders_1.Gender.Male]: {
             2: [262666, 1011578],
-            3: [267603, 386968, 1078548, 387102],
+            3: [
+                267603, 386968, 1078548, 387102, 201413082, 201388129, 201364626, 201982876, 201982884, 202038336, 202041118, 201443509, 202038338,
+                201364628, 201379838, 201413070, 201669268, 201447672, 201444891, 201356348, 201450442, 201450440, 201382598, 201443507, 201691362,
+                201433825, 202038334, 201413072, 202038340, 201357728, 201774281, 202038342, 201413074, 201631842, 201335567, 201982880, 201458757,
+                202020272, 201669270, 201413076, 201450438, 201526616, 201354955, 201982886, 201447670, 201393687, 201388148, 201522447, 201485039,
+                201775681, 201388150, 201634602, 202038344, 201586155, 201825400, 202038346,
+            ],
             4: [863896, 863900, 863890, 842944, 842619, 842625, 842621, 842617, 863874, 853350, 863879, 863881],
             5: [],
             6: [1078802, 1078805, 1078804, 1078807, 1078806],
         },
         [Genders_1.Gender.Female]: {
             2: [1071957, 1071956],
-            3: [548297, 548320, 548319, 548318, 548317, 548302, 1073825],
+            3: [
+                548297, 548320, 548319, 548318, 548317, 548302, 1073825, 201415839, 202020222, 201966320, 201530762, 201512635, 201847629, 201662311,
+                201666456, 201666455, 201666458, 201998094, 202020202, 201849008, 201847595, 202027181, 201864205, 201518297, 201623525, 201752177,
+                202034188, 201977358, 201512637, 201759073, 201472599, 201586147, 201975977, 201512639, 201738353, 201580579, 201683080, 201336947,
+                201608324, 202020262, 201637381, 202020266, 201593081, 201731431, 201512724, 201710689, 201512663, 201388131, 201512643, 201652625,
+                201604180, 201993955, 201964937, 201406150, 201692744, 201695502, 202020184, 201395083, 201811592, 201931813,
+            ],
             4: [],
             5: [],
             6: [],
@@ -35151,7 +40297,11 @@ exports.HeadPartsExtraSlotsConfig = {
             2: [651406, 148024, 147503],
             3: [
                 630147, 630148, 630149, 333061, 332985, 332968, 332945, 332886, 332819, 332817, 332809, 332807, 332815, 332813, 332811, 916273,
-                916274, 916275, 916282, 916415, 916418, 916423, 916479, 651455, 1067118, 1062642, 947566,
+                916274, 916275, 916282, 916415, 916418, 916423, 916479, 651455, 1067118, 1062642, 947566, 201413082, 201388129, 201364626, 201982876,
+                201982884, 202038336, 202041118, 201443509, 202038338, 201364628, 201379838, 201413070, 201669268, 201447672, 201444891, 201356348,
+                201450442, 201450440, 201382598, 201443507, 201691362, 201433825, 202038334, 201413072, 202038340, 201357728, 201774281, 202038342,
+                201413074, 201631842, 201335567, 201982880, 201458757, 202020272, 201669270, 201413076, 201450438, 201526616, 201354955, 201982886,
+                201447670, 201393687, 201388148, 201522447, 201485039, 201775681, 201388150, 201634602, 202038344, 201586155, 201825400, 202038346,
             ],
             4: [863896, 863900, 863890, 842944, 842619, 842625, 842621, 842617, 863874, 853350, 863879, 863881],
             5: [],
@@ -35161,7 +40311,11 @@ exports.HeadPartsExtraSlotsConfig = {
             2: [1011571, 1011572],
             3: [
                 332195, 332022, 332021, 332018, 331984, 331971, 331963, 331962, 331961, 331960, 331959, 331958, 961128, 961129, 961130, 961131,
-                961132, 961133, 961134, 961135, 1075989,
+                961132, 961133, 961134, 961135, 1075989, 201415839, 202020222, 201966320, 201530762, 201512635, 201847629, 201662311, 201666456,
+                201666455, 201666458, 201998094, 202020202, 201849008, 201847595, 202027181, 201864205, 201518297, 201623525, 201752177, 202034188,
+                201977358, 201512637, 201759073, 201472599, 201586147, 201975977, 201512639, 201738353, 201580579, 201683080, 201336947, 201608324,
+                202020262, 201637381, 202020266, 201593081, 201731431, 201512724, 201710689, 201512663, 201388131, 201512643, 201652625, 201604180,
+                201993955, 201964937, 201406150, 201692744, 201695502, 202020184, 201395083, 201811592, 201931813,
             ],
             4: [],
             5: [],
@@ -35171,14 +40325,28 @@ exports.HeadPartsExtraSlotsConfig = {
     [type_1.Race.WoodElf]: {
         [Genders_1.Gender.Male]: {
             2: [1011579, 1011578],
-            3: [331840, 331834, 331820, 964593, 989851, 967031, 967033, 967034, 967081, 967093, 967264, 967266, 967267, 967268],
+            3: [
+                331840, 331834, 331820, 964593, 989851, 967031, 967033, 967034, 967081, 967093, 967264, 967266, 967267, 967268, 201835110, 201828164,
+                201828162, 201982885, 201982878, 201982884, 202038336, 202042497, 201828166, 202042499, 201928168, 201828170, 201828172, 201828174,
+                201828176, 201828178, 201828180, 201828182, 201828184, 201829564, 201443507, 201413082, 201829566, 201433825, 202038334, 201413072,
+                202042501, 201829568, 201774283, 202042503, 201829570, 201829572, 201829574, 201982882, 201829576, 202020274, 201829578, 201833720,
+                201833722, 201833724, 201833726, 201982889, 201833728, 201833730, 201836491, 201836493, 201775683, 201836495, 201388150, 201634602,
+                202042505, 201836497, 201825402, 202042507,
+            ],
             4: [842944, 842619, 842625, 842621, 842617],
             5: [],
             6: [],
         },
         [Genders_1.Gender.Female]: {
             2: [1084962, 1084963],
-            3: [576135, 576137, 576140, 576150, 967608, 967609, 967610, 967611, 967612, 967613, 967614, 967615, 967616, 967617],
+            3: [
+                576135, 576137, 576140, 576150, 967608, 967609, 967610, 967611, 967612, 967613, 967614, 967615, 967616, 967617, 202020222, 201415839,
+                201966322, 201864205, 201530762, 201515531, 201855925, 201662313, 201666456, 201666455, 201666458, 201998094, 202020202, 201849008,
+                201847595, 202027181, 201518297, 201623525, 201752177, 202034188, 201977358, 201512637, 201759073, 201472599, 201586147, 201975977,
+                201512639, 201738353, 201580579, 201683080, 201336947, 201608324, 202020262, 201637381, 202020266, 201593081, 201731431, 201512724,
+                201710689, 201512663, 201388131, 201512643, 201652625, 201604180, 201993955, 201964937, 201406150, 201692744, 201695502, 202020184,
+                201395083, 201811592, 201931813,
+            ],
             4: [],
             5: [],
             6: [],
@@ -35398,7 +40566,6 @@ var ItemHashes;
     ItemHashes["IRON_DAGGER"] = "iron_dagger";
     ItemHashes["IRON_WARHAMMER"] = "iron_warhammer";
     ItemHashes["IRON_GREATSWORD"] = "iron_greatsword";
-    ItemHashes["STAFF_OF_THE_HEALING_HAND"] = "staff_of_the_healing_hand";
     ItemHashes["STEEL_DAGGER"] = "steel_dagger";
     ItemHashes["ORCISH_DAGGER"] = "orcish_dagger";
     ItemHashes["DWARVEN_DAGGER"] = "dwarven_dagger";
@@ -35664,6 +40831,7 @@ var ItemHashes;
     ItemHashes["RICH_WEAR_3"] = "rich_wear_3";
     ItemHashes["RICH_WEAR_4"] = "rich_wear_4";
     ItemHashes["RICH_WEAR_5"] = "rich_wear_5";
+    ItemHashes["REPAIR_KIT"] = "repair_kit";
 })(ItemHashes = exports.ItemHashes || (exports.ItemHashes = {}));
 
 
@@ -35675,7 +40843,7 @@ var ItemHashes;
 "use strict";
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.FOOD_AND_WATER_COOLDOWN = exports.FOOD_COOLDOWN = exports.DRINK_COOLDOWN = void 0;
+exports.POTION_COOLDOWN = exports.FOOD_AND_WATER_COOLDOWN = exports.FOOD_COOLDOWN = exports.DRINK_COOLDOWN = void 0;
 const ItemHashes_1 = __webpack_require__(2388);
 const itemType_1 = __webpack_require__(4405);
 const ArmorItemConfig_1 = __webpack_require__(5710);
@@ -35691,15 +40859,17 @@ const PotionsItemConfig_1 = __webpack_require__(8153);
 const AlcoholItemConfig_1 = __webpack_require__(2082);
 const PersonModules_1 = __webpack_require__(8877);
 const PotionActionType_1 = __webpack_require__(3507);
+const ClothesItemConfig_1 = __webpack_require__(9919);
 exports.DRINK_COOLDOWN = 1000 * 5;
 exports.FOOD_COOLDOWN = 1000 * 5;
 exports.FOOD_AND_WATER_COOLDOWN = 1000 * 5;
+exports.POTION_COOLDOWN = 1000 * 30;
 const items = [
     new BackpackItemConfig_1.BackpackItemConfig({
         id: ItemHashes_1.ItemHashes.RED_BACKPACK,
         size: { width: 2, height: 2 },
         type: itemType_1.ItemType.Backpack,
-        image: 'red_backpack',
+        image: 'backpack',
         itemId: '09002301',
         weight: 4,
         info: BackpackItemConfig_1.BackpackItemConfig.getInfo({
@@ -35718,7 +40888,7 @@ const items = [
         id: ItemHashes_1.ItemHashes.GREEN_BACKPACK,
         size: { width: 2, height: 2 },
         type: itemType_1.ItemType.Backpack,
-        image: 'green_backpack',
+        image: 'backpack',
         itemId: '09002307',
         weight: 4,
         info: BackpackItemConfig_1.BackpackItemConfig.getInfo({
@@ -35737,7 +40907,7 @@ const items = [
         id: ItemHashes_1.ItemHashes.AMBER_BACKPACK,
         size: { width: 2, height: 2 },
         type: itemType_1.ItemType.Backpack,
-        image: 'amber_backpack',
+        image: 'backpack',
         itemId: '09002308',
         weight: 4,
         info: BackpackItemConfig_1.BackpackItemConfig.getInfo({
@@ -35756,7 +40926,7 @@ const items = [
         id: ItemHashes_1.ItemHashes.PURPLE_BACKPACK,
         size: { width: 2, height: 2 },
         type: itemType_1.ItemType.Backpack,
-        image: 'purple_backpack',
+        image: 'backpack',
         itemId: '09002309',
         weight: 4,
         info: BackpackItemConfig_1.BackpackItemConfig.getInfo({
@@ -35772,15 +40942,15 @@ const items = [
         },
     }),
     new BackpackItemConfig_1.BackpackItemConfig({
-        id: ItemHashes_1.ItemHashes.BLUE_BACKPACK,
+        id: ItemHashes_1.ItemHashes.BACKPACK,
         size: { width: 2, height: 2 },
         type: itemType_1.ItemType.Backpack,
-        image: 'blue_BACKPACK',
+        image: 'backpack',
         itemId: '09000801',
         weight: 4,
         info: BackpackItemConfig_1.BackpackItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
-            name: 'Рюкзак с синей лампой',
+            name: 'Рюкзак',
             weight: 4,
             description: 'Самый простой рюкзак для увеличения переносимого веса. Имеет синюю лампу.',
         }),
@@ -35790,14 +40960,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.ALIKR_HOOD,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0007BC1A',
         image: 'alikr_hood',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: "Аликр'ский капюшон",
             weight: 3,
@@ -35810,14 +40980,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COOK_HAT,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0001BCA7',
         image: 'cook_hat',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Поварской колпак',
             weight: 3,
@@ -35830,14 +41000,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HOOD_1,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00017696',
-        image: 'hood_1',
+        image: 'hat_4',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Капюшон',
             weight: 3,
@@ -35850,14 +41020,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HAT_1,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000330B3',
         image: 'hat_1',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Головной убор',
             weight: 3,
@@ -35870,14 +41040,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RICHHAT_1,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000CEE84',
         image: 'richhat_1',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Богатый головной убор',
             weight: 3,
@@ -35890,14 +41060,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HAT_2,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0004223B',
         image: 'hat_2',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Головной убор',
             weight: 3,
@@ -35910,14 +41080,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HAT_3,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000209AA',
         image: 'hat_3',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Головной убор',
             weight: 3,
@@ -35930,14 +41100,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HAT_4,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000330BC',
         image: 'hat_4',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Головной убор',
             weight: 3,
@@ -35950,14 +41120,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MAGEHOOD_1,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000D3DE8',
         image: 'magehood_1',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Капюшон мага',
             weight: 3,
@@ -35970,14 +41140,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MAGEHOOD_2,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0010D6A6',
         image: 'magehood_2',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Капюшон мага',
             weight: 3,
@@ -35990,14 +41160,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MAGEHOOD_3,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0010D6A7',
         image: 'magehood_3',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Капюшон мага',
             weight: 3,
@@ -36010,14 +41180,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MOURNINGHAT_1,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000646AB',
         image: 'mourninghat_1',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Траурный головной убор',
             weight: 3,
@@ -36030,14 +41200,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.PSIJIT_HOOD,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00065B99',
         image: 'psijit_hood',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Капюшон Псиджиков',
             weight: 3,
@@ -36050,14 +41220,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.TORN_HAT,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00013104',
         image: 'torn_hat',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Рваная шапка',
             weight: 3,
@@ -36070,14 +41240,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.REDGUARD_HOOD,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000E0DD2',
         image: 'redguard_hood',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Редгардский капюшон',
             weight: 3,
@@ -36090,14 +41260,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RELIGION_HOOD,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0403B04E',
         image: 'religion_hood',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Капюшон храмового жреца',
             weight: 3,
@@ -36110,14 +41280,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.VAMPIRE_HOOD,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '02019ADE',
-        image: 'religion_hood',
+        image: 'vampire_hood',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Epic,
             name: 'Капюшон вампира',
             weight: 3,
@@ -36130,14 +41300,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.CLOTHER_WITH_BELT,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0001BE1A',
         image: 'clother_with_belt',
         weight: 10,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда с поясом',
             weight: 10,
@@ -36150,14 +41320,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.SMITH_APRON_1,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0005B69F',
         image: 'smith_apron_1',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Фартук кузнеца',
             weight: 5,
@@ -36170,14 +41340,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.SMITH_APRON_2,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006FF37',
         image: 'smith_apron_2',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Фартук кузнеца',
             weight: 5,
@@ -36190,14 +41360,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COOK_CLOTHER,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0001BC82',
         image: 'cook_clother',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Поварская одежда',
             weight: 5,
@@ -36210,14 +41380,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_1,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000F1229',
-        image: 'hide_armor',
+        image: 'common_clother',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36230,14 +41400,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_2,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000209A6',
         image: 'common_clother_2',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36250,14 +41420,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_3,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006C1DA',
         image: 'common_clother_3',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36270,14 +41440,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_4,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00017695',
         image: 'common_clother_4',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36290,14 +41460,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_5,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006C1D9',
         image: 'common_clother_5',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36310,14 +41480,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_6,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006C1D8',
         image: 'common_clother_6',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36330,14 +41500,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_7,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0003452E',
         image: 'common_clother_7',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36350,14 +41520,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_8,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000261C0',
         image: 'common_clother_8',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36370,14 +41540,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_9,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0005B6A1',
         image: 'common_clother_9',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36390,14 +41560,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_10,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006FF38',
         image: 'common_clother_10',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36410,14 +41580,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_11,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0004223C',
         image: 'common_clother_11',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36430,14 +41600,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COMMON_CLOTHER_12,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006FF45',
         image: 'common_clother_12',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда ',
             weight: 5,
@@ -36450,14 +41620,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.DUNMER_CLOTHER,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0203706a',
         image: 'Dunmer_clother',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Epic,
             name: 'Наряд данмера',
             weight: 5,
@@ -36470,14 +41640,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BEAUTY_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000E84C4',
         image: 'beauty_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Epic,
             name: 'Украшенное одеяние',
             weight: 5,
@@ -36490,14 +41660,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.EMBROIDERED_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000EAD49',
         image: 'embroidered_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Расшитый наряд',
             weight: 5,
@@ -36510,14 +41680,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RICH_WEAR_1,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000CEE80',
         image: 'rich_wear_1',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Богатая одежда',
             weight: 5,
@@ -36530,14 +41700,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RICH_WEAR_2,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00086991',
         image: 'rich_wear_2',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Богатая одежда',
             weight: 5,
@@ -36550,14 +41720,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RICH_WEAR_3,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000F8713',
         image: 'rich_wear_3',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Богатая одежда',
             weight: 5,
@@ -36570,14 +41740,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RICH_WEAR_4,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000F8715',
         image: 'rich_wear_4',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Богатая одежда',
             weight: 5,
@@ -36590,14 +41760,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RICH_WEAR_5,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000CEE76',
         image: 'rich_wear_5',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Богатая одежда',
             weight: 5,
@@ -36610,14 +41780,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.FUR_WEAR_1,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0008698C',
-        image: 'rich_wear_5',
+        image: 'fur_wear_1',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Плащ с меховой оторочкой',
             weight: 5,
@@ -36630,14 +41800,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HAMMERFIELD_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0007BC19',
         image: 'hammerfield_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Хаммерфелльская одежда',
             weight: 5,
@@ -36650,14 +41820,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MINER_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00080697',
         image: 'miner_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Шахтерская одежда',
             weight: 5,
@@ -36670,14 +41840,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MOURNING_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000646A7',
         image: 'mourning_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Траурная одежда',
             weight: 5,
@@ -36690,14 +41860,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.VERY_RICH_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0005DB7B',
         image: 'very_rich_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Роскошная одежда',
             weight: 5,
@@ -36710,14 +41880,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.SHINY_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000E9EB5',
         image: 'shiny_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Наряд из Сияющих одежд',
             weight: 5,
@@ -36730,14 +41900,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.TORN_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00013105',
         image: 'torn_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Рваный балахон',
             weight: 5,
@@ -36750,14 +41920,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.TORN_PANTS,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0008F19A',
         image: 'torn_pants',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Рваные штаны',
             weight: 5,
@@ -36770,14 +41940,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.REDGUARD_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000E0DD0',
         image: 'redguard_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Редгардская одежда',
             weight: 5,
@@ -36790,14 +41960,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.VERY_RICH_WEAR_2,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000E84C6',
         image: 'very_rich_wear_2',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Изящный наряд',
             weight: 5,
@@ -36810,14 +41980,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HOMESPUN_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0003C9FE',
         image: 'homespun_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Домотканая одежда',
             weight: 5,
@@ -36830,14 +42000,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.INNWORKER_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000D191F',
         image: 'innworker_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда трактирщика',
             weight: 5,
@@ -36850,14 +42020,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.VAMPIRE_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '02019ADF',
         image: 'vampire_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Одеяние вампира',
             weight: 5,
@@ -36870,14 +42040,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BLACK_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00106661',
         image: 'black_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Чёрное одеяние',
             weight: 5,
@@ -36890,14 +42060,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BLUE_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000A199B',
         image: 'blue_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Синее одеяние',
             weight: 5,
@@ -36910,14 +42080,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COLLEGE_ADEPT_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000D3DEA',
         image: 'college_adept_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одеяние Адепта Коллегии',
             weight: 5,
@@ -36930,14 +42100,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.GREEN_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
-        itemId: '0310CFF0',
+        type: itemType_1.ItemType.Clothes,
+        itemId: '0010CFF0',
         image: 'green_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Зелёное одеяние',
             weight: 5,
@@ -36950,16 +42120,16 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.GREYBEARDS_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00036A44',
         image: 'greybeards_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
-            name: 'Зелёное одеяние',
+            name: 'Одеяние седобородых',
             weight: 5,
             type: itemType_1.ArmorItemType.Clothes,
             description: '',
@@ -36970,14 +42140,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HOLY_BLACKWEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00107108',
         image: 'holy_blackwear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Чёрное одеяние с капюшоном',
             weight: 5,
@@ -36990,14 +42160,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HOLY_HOODWEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00107106',
         image: 'holy_hoodwear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Монашеская ряса с капюшоном',
             weight: 5,
@@ -37010,14 +42180,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MAGE_WEAR_1,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006B46B',
         image: 'mage_wear_1',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Одеяние мага',
             weight: 5,
@@ -37030,14 +42200,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MAGE_WEAR_2,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006B46B',
         image: 'mage_wear_2',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Одеяние мага',
             weight: 5,
@@ -37050,14 +42220,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HOLY_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000BACF3',
         image: 'holy_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Монашеская ряса',
             weight: 5,
@@ -37070,14 +42240,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.PSIJIT_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00065B94',
         image: 'psijit_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Одеяние псиджиков',
             weight: 5,
@@ -37090,14 +42260,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.VERMINA_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000E739B',
         image: 'vermina_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одеяние Вермины',
             weight: 5,
@@ -37110,14 +42280,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RED_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
-        itemId: '0310CFF2',
+        type: itemType_1.ItemType.Clothes,
+        itemId: '0010CFF2',
         image: 'red_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Красное одеяние',
             weight: 5,
@@ -37130,14 +42300,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.TALMOR_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00065BBF',
         image: 'talmor_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Талморское одеяние',
             weight: 5,
@@ -37150,14 +42320,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.GLOVES,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000261C1',
         image: 'gloves',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Перчатки',
             weight: 3,
@@ -37170,14 +42340,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MYTH_GLOVES,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00026C3B',
         image: 'myth_gloves',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Мистические настроечные перчатки',
             weight: 3,
@@ -37190,14 +42360,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MYTHDAWN_GLOVES,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000B145B',
         image: 'mythdawn_gloves',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Перчатки Мифического Рассвета',
             weight: 3,
@@ -37210,14 +42380,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.PSIJIT_GLOVES,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00065B9D',
         image: 'psijit_gloves',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Перчатки Псиджиков',
             weight: 3,
@@ -37230,14 +42400,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.TALMOR_GLOVES,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00065BB3',
         image: 'talmor_gloves',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Талморские перчатки',
             weight: 3,
@@ -37250,14 +42420,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.VAMPIRE_GLOVES,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '02019AE3',
         image: 'vampire_gloves',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Вампирские перчатки',
             weight: 3,
@@ -37270,14 +42440,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_1,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0001BE1B',
         image: 'boots_1',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37290,14 +42460,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_2,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000209A5',
         image: 'boots_2',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37310,14 +42480,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_3,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000261BD',
         image: 'boots_3',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37330,14 +42500,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_4,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0003452F',
         image: 'boots_4',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37350,14 +42520,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_5,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006B46C',
-        image: 'boots_5',
+        image: 'redguard_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37370,14 +42540,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_6,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000D1921',
-        image: 'boots_6',
+        image: 'college_boots_2',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37390,14 +42560,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_7,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000BACD7',
         image: 'boots_7',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37410,14 +42580,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_8,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000C5D12',
         image: 'boots_8',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37430,14 +42600,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_9,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000E0DD4',
         image: 'boots_9',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37450,14 +42620,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_10,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0004223D',
         image: 'boots_10',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37470,14 +42640,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_11,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00080699',
         image: 'boots_11',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37490,14 +42660,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.BOOTS_12,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000C36E8',
         image: 'boots_12',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги',
             weight: 3,
@@ -37510,14 +42680,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COLLEGE_BOOTS_1,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0010E2CE',
         image: 'college_boots_1',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги ученика Коллегии',
             weight: 3,
@@ -37530,14 +42700,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.COLLEGE_BOOTS_2,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0010E2DC',
         image: 'college_boots_2',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги ученика Коллегии',
             weight: 3,
@@ -37550,14 +42720,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.SHACKLES_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000CEE78',
         image: 'shackles_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги с оковкой',
             weight: 3,
@@ -37570,14 +42740,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.CULTIST_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '02037b8E',
         image: 'cultist_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги члена культа',
             weight: 3,
@@ -37590,14 +42760,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.DUNMER_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0203705A',
         image: 'dunmer_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Ботинки данмера',
             weight: 3,
@@ -37610,14 +42780,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RICH_BOOTS_1,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00086993',
         image: 'rich_boots_1',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Богатые сапоги',
             weight: 3,
@@ -37630,14 +42800,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RICH_BOOTS_2,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000CEE82',
         image: 'rich_boots_2',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Богатые сапоги',
             weight: 3,
@@ -37650,14 +42820,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.WINDINGS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0003CA00',
         image: 'windings',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Ножные обмотки',
             weight: 3,
@@ -37670,14 +42840,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.FUR_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0005DB7E',
         image: 'fur_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги на меху',
             weight: 3,
@@ -37690,14 +42860,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MYTHDAWN_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000B1460',
-        image: 'dunmer_boots',
+        image: 'mythdawn_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Ботинки Мифического Рассвета',
             weight: 3,
@@ -37710,14 +42880,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.SOFT_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0008698E',
         image: 'soft_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Мягкие сапоги',
             weight: 3,
@@ -37730,14 +42900,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.PSIJIT_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00065B9B',
         image: 'psijit_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги Псиджиков',
             weight: 3,
@@ -37750,14 +42920,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.TORN_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00013106',
         image: 'torn_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
             name: 'Рваные сапоги',
             weight: 3,
@@ -37770,14 +42940,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.REDGUARD_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0007BC15',
         image: 'redguard_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Редгардские сапоги',
             weight: 3,
@@ -37790,14 +42960,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.SHOES_1,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00018801',
-        image: 'hide_boots',
+        image: 'shoes',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Ботинки',
             weight: 3,
@@ -37810,14 +42980,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.SHOES_2,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0005B6A0',
-        image: 'shoes_2',
+        image: 'shoes',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Ботинки',
             weight: 3,
@@ -37830,14 +43000,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.SHOES_3,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000E80A8',
-        image: 'shoes_3',
+        image: 'shoes',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Ботинки',
             weight: 3,
@@ -37850,14 +43020,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.SHOES_4,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0005b69E',
         image: 'shoes_4',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Ботинки',
             weight: 3,
@@ -37870,14 +43040,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.HOLY_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0403B04B',
         image: 'holy_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Сапоги храмового жреца',
             weight: 3,
@@ -37890,14 +43060,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.TALMOR_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00065BAC',
-        image: 'holy_boots',
+        image: 'talmor_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Талморские сапоги',
             weight: 3,
@@ -37910,14 +43080,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.VAMPIRE_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '02019AE1',
-        image: 'holy_boots',
+        image: 'vampire_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Вампирские сапоги',
             weight: 3,
@@ -37930,14 +43100,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.IMPERIAL_MANTLE,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00015516',
         image: 'imperial_mantle',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Epic,
             name: 'Императорская мантия',
             weight: 3,
@@ -37950,14 +43120,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MYTHDAWN_WEAR_1,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000B144D',
         image: 'mythdawn_wear_1',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Epic,
             name: 'Одеяние Мифического Рассвета',
             weight: 5,
@@ -37970,14 +43140,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.MYTHDAWN_WEAR_2,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000B144D',
         image: 'mythdawn_wear_2',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Epic,
             name: 'Одеяние Мифического Рассвета',
             weight: 5,
@@ -37990,14 +43160,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.NOCTURNAL_WEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00088952',
         image: 'nocturnal_wear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Одежда Ноктюрнал',
             weight: 5,
@@ -38010,14 +43180,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.ELEGANT_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000E40DE',
         image: 'elegant_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Нарядные ботинки',
             weight: 3,
@@ -38030,14 +43200,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.ELEGANT_CLOTHER,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000E40DF',
         image: 'elegant_clother',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Нарядная одежда',
             weight: 5,
@@ -38050,14 +43220,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.RED_HOODWEAR,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
-        itemId: '0210CFEB',
+        type: itemType_1.ItemType.Clothes,
+        itemId: '0010CFEB',
         image: 'red_hoodwear',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Красное одеяние с капюшоном',
             weight: 5,
@@ -38070,14 +43240,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.SHEOGATH_CLOTHER,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000C7CBB',
         image: 'sheogath_clother',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Наряд Шеогората',
             weight: 5,
@@ -38090,14 +43260,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.ULFRIC_CLOTHER,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00062303',
         image: 'ulfric_clother',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Epic,
             name: 'Одежда Ульфрика',
             weight: 5,
@@ -38110,14 +43280,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.ULFRIC_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00062311',
         image: 'ulfric_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Epic,
             name: 'Сапоги Ульфрика',
             weight: 3,
@@ -38130,14 +43300,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.ULFRIC_BRACERS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006230B',
         image: 'ulfric_bracers',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Epic,
             name: 'Наручи Ульфрика',
             weight: 3,
@@ -38150,14 +43320,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.WEDDING_CLOTHER,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00088956',
         image: 'wedding_clother',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Свадебный наряд',
             weight: 5,
@@ -38170,14 +43340,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.WEDDING_HAT,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0008895A',
         image: 'wedding_hat',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Свадебный венец',
             weight: 3,
@@ -38190,14 +43360,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.WEDDING_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00088958',
         image: 'wedding_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Свадебные сандалии',
             weight: 3,
@@ -38210,14 +43380,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.CICERON_CLOTHER,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006492C',
         image: 'ciceron_clother',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Одежда Цицерона',
             weight: 5,
@@ -38230,14 +43400,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.CICERON_HAT,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006492E',
         image: 'ciceron_hat',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Головной убор Цицерона',
             weight: 3,
@@ -38250,14 +43420,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.CICERON_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '0006492A',
         image: 'ciceron_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Сапоги Цицерона',
             weight: 3,
@@ -38270,14 +43440,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.CICERON_GLOVES,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '00088958',
         image: 'ciceron_gloves',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Перчатки Цицерона',
             weight: 3,
@@ -38290,14 +43460,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.JESTER_CLOTHER,
         size: { width: 2, height: 3 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000CEE6E',
         image: 'jester_clother',
         weight: 5,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Шутовская одежда',
             weight: 5,
@@ -38310,14 +43480,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.JESTER_HAT,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000CEE72',
         image: 'jester_hat',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Шутовской головной убор',
             weight: 3,
@@ -38330,14 +43500,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.JESTER_BOOTS,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000CEE70',
         image: 'jester_boots',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Rare,
             name: 'Шутовские сапоги',
             weight: 3,
@@ -38350,14 +43520,14 @@ const items = [
             },
         },
     }),
-    new ArmorItemConfig_1.ArmorItemConfig({
+    new ClothesItemConfig_1.ClothesItemConfig({
         id: ItemHashes_1.ItemHashes.JESTER_GLOVES,
         size: { width: 2, height: 2 },
-        type: itemType_1.ItemType.Armor,
+        type: itemType_1.ItemType.Clothes,
         itemId: '000CEE74',
         image: 'jester_gloves',
         weight: 3,
-        info: ArmorItemConfig_1.ArmorItemConfig.getInfo({
+        info: ClothesItemConfig_1.ClothesItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Шутовские перчатки',
             weight: 3,
@@ -40001,7 +45171,7 @@ const items = [
         weight: 3,
         itemId: '000E8B39',
         info: RodItemConfig_1.RodItemConfig.getInfo({
-            quality: itemType_1.Quality.Normal,
+            quality: itemType_1.Quality.Unusual,
             name: 'Удочка новичка',
             weight: 3,
             description: 'Идеальный выбор для начинающих рыболовов, эта удочка прощает ошибки и помогает освоить азы рыбной ловли.',
@@ -40015,7 +45185,7 @@ const items = [
         weight: 3,
         itemId: '000E8B39',
         info: RodItemConfig_1.RodItemConfig.getInfo({
-            quality: itemType_1.Quality.Unusual,
+            quality: itemType_1.Quality.Normal,
             name: 'Удочка опытного',
             weight: 3,
             description: 'Сбалансированное сочетание гибкости и силы делает эту удочку отличным инструментом для рыболовов, стремящихся к мастерству.',
@@ -40090,7 +45260,7 @@ const items = [
         weight: 1,
         info: WeaponItemConfig_1.WeaponItemConfig.getInfo({
             quality: itemType_1.Quality.Unusual,
-            name: '',
+            name: 'Кулаки',
             weight: 0,
             type: itemType_1.WeaponItemType.OneHanded,
             description: '',
@@ -40139,7 +45309,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -41333,7 +46503,7 @@ const items = [
         type: itemType_1.ItemType.Weapon,
         weaponRange: WeaponItemConfig_1.WeaponRange.MELEE,
         category: WeaponItemConfig_1.WeaponCategory.BattleAxe,
-        itemId: '00013981',
+        itemId: '00013980',
         image: 'iron_battleaxe',
         weight: 20,
         info: WeaponItemConfig_1.WeaponItemConfig.getInfo({
@@ -41356,7 +46526,7 @@ const items = [
         type: itemType_1.ItemType.Weapon,
         weaponRange: WeaponItemConfig_1.WeaponRange.MELEE,
         category: WeaponItemConfig_1.WeaponCategory.BattleAxe,
-        itemId: '0001398a',
+        itemId: '0009F25F',
         image: 'steel_battleaxe',
         weight: 21,
         info: WeaponItemConfig_1.WeaponItemConfig.getInfo({
@@ -41379,7 +46549,7 @@ const items = [
         type: itemType_1.ItemType.Weapon,
         weaponRange: WeaponItemConfig_1.WeaponRange.MELEE,
         category: WeaponItemConfig_1.WeaponCategory.BattleAxe,
-        itemId: '00013992',
+        itemId: '0001398C',
         image: 'orcish_battleaxe',
         weight: 22,
         info: WeaponItemConfig_1.WeaponItemConfig.getInfo({
@@ -41402,7 +46572,7 @@ const items = [
         type: itemType_1.ItemType.Weapon,
         weaponRange: WeaponItemConfig_1.WeaponRange.MELEE,
         category: WeaponItemConfig_1.WeaponCategory.BattleAxe,
-        itemId: '0001399a',
+        itemId: '00013994',
         image: 'dwarven_battleaxe',
         weight: 23,
         info: WeaponItemConfig_1.WeaponItemConfig.getInfo({
@@ -41425,7 +46595,7 @@ const items = [
         type: itemType_1.ItemType.Weapon,
         weaponRange: WeaponItemConfig_1.WeaponRange.MELEE,
         category: WeaponItemConfig_1.WeaponCategory.BattleAxe,
-        itemId: '000139a2',
+        itemId: '0001399C',
         image: 'elven_battleaxe',
         weight: 24,
         info: WeaponItemConfig_1.WeaponItemConfig.getInfo({
@@ -41448,7 +46618,7 @@ const items = [
         type: itemType_1.ItemType.Weapon,
         weaponRange: WeaponItemConfig_1.WeaponRange.MELEE,
         category: WeaponItemConfig_1.WeaponCategory.BattleAxe,
-        itemId: '000139aa',
+        itemId: '000139A4',
         image: 'glass_battleaxe',
         weight: 25,
         info: WeaponItemConfig_1.WeaponItemConfig.getInfo({
@@ -41471,7 +46641,7 @@ const items = [
         type: itemType_1.ItemType.Weapon,
         weaponRange: WeaponItemConfig_1.WeaponRange.MELEE,
         category: WeaponItemConfig_1.WeaponCategory.BattleAxe,
-        itemId: '000139b2',
+        itemId: '000139AC',
         image: 'ebony_battleaxe',
         weight: 26,
         info: WeaponItemConfig_1.WeaponItemConfig.getInfo({
@@ -41494,12 +46664,12 @@ const items = [
         type: itemType_1.ItemType.Weapon,
         weaponRange: WeaponItemConfig_1.WeaponRange.MELEE,
         category: WeaponItemConfig_1.WeaponCategory.BattleAxe,
-        itemId: '000139ba',
+        itemId: '000139B4',
         image: 'daedric_battleaxe',
         weight: 27,
         info: WeaponItemConfig_1.WeaponItemConfig.getInfo({
             quality: itemType_1.Quality.Legendary,
-            name: 'Даэдрический двуручный меч',
+            name: 'Даэдрическая секира',
             weight: 27,
             type: itemType_1.WeaponItemType.TwoHanded,
             description: 'Даэдрическая секира — это базовый инструмент любого воина, служащий верой и правдой в столкновениях с врагами.',
@@ -41517,7 +46687,7 @@ const items = [
         type: itemType_1.ItemType.Weapon,
         weaponRange: WeaponItemConfig_1.WeaponRange.MELEE,
         category: WeaponItemConfig_1.WeaponCategory.BattleAxe,
-        itemId: '02014fd0',
+        itemId: '02014FC3',
         image: 'dragonbone_battleaxe',
         weight: 30,
         info: WeaponItemConfig_1.WeaponItemConfig.getInfo({
@@ -41997,7 +47167,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -42177,7 +47347,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -42277,7 +47447,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -42377,7 +47547,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -42477,7 +47647,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -42577,7 +47747,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -42677,7 +47847,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -42777,7 +47947,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -42877,7 +48047,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -42977,7 +48147,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -43077,7 +48247,7 @@ const items = [
         }),
         option: {
             wearable: {
-                slot: [itemType_1.CharSlots.FirstHand],
+                slot: [itemType_1.CharSlots.SecondHand],
             },
         },
     }),
@@ -43087,7 +48257,7 @@ const items = [
         type: itemType_1.ItemType.Resources,
         image: 'ore',
         weight: 2,
-        itemId: '00034C5E',
+        itemId: '00071CF3',
         info: CommonItemConfig_1.CommonItemConfig.getInfo({
             quality: itemType_1.Quality.Normal,
             name: 'Руда',
@@ -43095,6 +48265,21 @@ const items = [
             description: 'Кусок горной породы. При переплавке есть шанс получить ценный ресурс.',
         }),
         option: { maxStack: 25 },
+    }),
+    new CommonItemConfig_1.CommonItemConfig({
+        id: ItemHashes_1.ItemHashes.REPAIR_KIT,
+        size: { width: 2, height: 1 },
+        type: itemType_1.ItemType.Other,
+        image: 'repair_kit',
+        weight: 0.5,
+        itemId: '0005CAE1',
+        info: CommonItemConfig_1.CommonItemConfig.getInfo({
+            quality: itemType_1.Quality.Unusual,
+            name: 'Ремонтный набор',
+            weight: 0.5,
+            description: 'Необходим для ремонта экипировки. Исчезает после использования.',
+        }),
+        option: { maxStack: 10 },
     }),
 ];
 const itemsMap = new Map(items.map(item => [item.id, item]));
@@ -43223,6 +48408,8 @@ var ItemActionType;
     ItemActionType["USE_ROD"] = "use_rod";
     ItemActionType["USE_SHOVEL"] = "use_shovel";
     ItemActionType["USE_POTION"] = "use_potion";
+    ItemActionType["CONFISCATE"] = "confiscate";
+    ItemActionType["REPAIR"] = "repair";
 })(ItemActionType = exports.ItemActionType || (exports.ItemActionType = {}));
 exports.ItemActionConfig = {
     [ItemActionType.DROP]: { type: ItemActionType.DROP, name: 'Выбросить' },
@@ -43251,6 +48438,11 @@ exports.ItemActionConfig = {
         type: ItemActionType.USE_SHOVEL,
         name: 'Использовать',
     },
+    [ItemActionType.CONFISCATE]: {
+        type: ItemActionType.CONFISCATE,
+        name: 'Изъять',
+    },
+    [ItemActionType.REPAIR]: { type: ItemActionType.REPAIR, name: 'Починить' },
 };
 
 
@@ -43345,11 +48537,15 @@ class ArmorItemConfig extends ItemConfig_1.ItemConfig {
             name: infoOption.name,
             parameters: [
                 { title: 'Броня', value: infoOption.type },
-                { title: 'Состояние', value: `${100}%` },
                 { title: 'Вес', value: `${infoOption.weight}кг.` },
             ],
             description: infoOption.description,
-            actions: [itemType_1.ItemActionConfig[itemType_1.ItemActionType.PUT_ON], itemType_1.ItemActionConfig[itemType_1.ItemActionType.SPLIT], itemType_1.ItemActionConfig[itemType_1.ItemActionType.DROP]],
+            actions: [
+                itemType_1.ItemActionConfig[itemType_1.ItemActionType.PUT_ON],
+                itemType_1.ItemActionConfig[itemType_1.ItemActionType.REPAIR],
+                itemType_1.ItemActionConfig[itemType_1.ItemActionType.SPLIT],
+                itemType_1.ItemActionConfig[itemType_1.ItemActionType.DROP],
+            ],
         };
     }
 }
@@ -43388,6 +48584,55 @@ class BackpackItemConfig extends ItemConfig_1.ItemConfig {
     }
 }
 exports.BackpackItemConfig = BackpackItemConfig;
+
+
+/***/ }),
+
+/***/ 9919:
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ClothesItemConfig = void 0;
+const itemType_1 = __webpack_require__(4405);
+const ItemConfig_1 = __webpack_require__(7457);
+class ClothesItemConfig extends ItemConfig_1.ItemConfig {
+    constructor(armorItemConfigOption) {
+        super(armorItemConfigOption.id, armorItemConfigOption.size, armorItemConfigOption.type, armorItemConfigOption.image, armorItemConfigOption.weight, armorItemConfigOption.info, armorItemConfigOption.option, armorItemConfigOption.itemId);
+    }
+    getData() {
+        return null;
+    }
+    getDTO(id, position, isTurned, amount) {
+        var _a;
+        return {
+            id: id,
+            size: this.size,
+            position: position,
+            image: this.image,
+            isTurned: isTurned,
+            amount: amount,
+            type: this.type,
+            weight: this.weight,
+            info: this.info,
+            wearable: (_a = this.option) === null || _a === void 0 ? void 0 : _a.wearable,
+        };
+    }
+    static getInfo(infoOption) {
+        return {
+            quality: infoOption.quality,
+            name: infoOption.name,
+            parameters: [
+                { title: 'Одежда', value: infoOption.type },
+                { title: 'Вес', value: `${infoOption.weight}кг.` },
+            ],
+            description: infoOption.description,
+            actions: [itemType_1.ItemActionConfig[itemType_1.ItemActionType.PUT_ON], itemType_1.ItemActionConfig[itemType_1.ItemActionType.SPLIT], itemType_1.ItemActionConfig[itemType_1.ItemActionType.DROP]],
+        };
+    }
+}
+exports.ClothesItemConfig = ClothesItemConfig;
 
 
 /***/ }),
@@ -43784,11 +49029,15 @@ class WeaponItemConfig extends ItemConfig_1.ItemConfig {
             name: infoOptions.name,
             parameters: [
                 { title: 'Тип Оружия', value: infoOptions.type },
-                { title: 'Состояние', value: `${100}%` },
                 { title: 'Вес', value: `${infoOptions.weight}кг.` },
             ],
             description: infoOptions.description,
-            actions: [itemType_1.ItemActionConfig[itemType_1.ItemActionType.PUT_ON], itemType_1.ItemActionConfig[itemType_1.ItemActionType.SPLIT], itemType_1.ItemActionConfig[itemType_1.ItemActionType.DROP]],
+            actions: [
+                itemType_1.ItemActionConfig[itemType_1.ItemActionType.PUT_ON],
+                itemType_1.ItemActionConfig[itemType_1.ItemActionType.REPAIR],
+                itemType_1.ItemActionConfig[itemType_1.ItemActionType.SPLIT],
+                itemType_1.ItemActionConfig[itemType_1.ItemActionType.DROP],
+            ],
         };
     }
 }
@@ -44599,7 +49848,6 @@ exports.setActorValuePercentage = setActorValuePercentage;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.setupHooks = exports.AnimationSource = exports.setDefaultAnimsDisabled = exports.applyAnimation = exports.AnimationEventName = void 0;
 const skyrimPlatform_1 = __webpack_require__(2112);
-const movementApply_1 = __webpack_require__(4885);
 var AnimationEventName;
 (function (AnimationEventName) {
     AnimationEventName["Ragdoll"] = "Ragdoll";
@@ -44621,18 +49869,6 @@ const applyAnimation = (refr, anim, state) => {
         allowedIdles.push([refr.getFormID(), anim.animEventName]);
     }
     const ac = skyrimPlatform_1.Actor.from(refr);
-    if (anim.animEventName === 'SkympFakeEquip') {
-        if (ac) {
-            (0, movementApply_1.applyWeapDrawn)(ac, true);
-        }
-        return;
-    }
-    if (anim.animEventName === 'SkympFakeUnequip') {
-        if (ac) {
-            (0, movementApply_1.applyWeapDrawn)(ac, false);
-        }
-        return;
-    }
     if (anim.animEventName === 'Ragdoll') {
         if (ac) {
             if (skyrimPlatform_1.storage.animationFunc1Set === true) {
@@ -44676,9 +49912,6 @@ class AnimationSource {
         this.refrId = 0;
         this.numChanges = 0;
         this.animEventName = '';
-        this.weapNonDrawnBlocker = 0;
-        this.weapDrawnBlocker = 0;
-        this.sneakBlocker = null;
         this.refrId = refr.getFormID();
         skyrimPlatform_1.hooks.sendAnimationEvent.add({
             enter: () => { },
@@ -44695,24 +49928,6 @@ class AnimationSource {
             },
         });
     }
-    filterMovement(mov) {
-        if (this.weapDrawnBlocker >= Date.now()) {
-            mov.isWeapDrawn = true;
-        }
-        if (this.weapNonDrawnBlocker >= Date.now()) {
-            mov.isWeapDrawn = false;
-        }
-        if (this.sneakBlocker === mov.isSneaking) {
-            this.sneakBlocker = null;
-        }
-        else if (this.sneakBlocker === true) {
-            mov.isSneaking = true;
-        }
-        else if (this.sneakBlocker === false) {
-            mov.isSneaking = false;
-        }
-        return mov;
-    }
     getAnimation() {
         const { numChanges, animEventName } = this;
         return { numChanges, animEventName };
@@ -44724,20 +49939,10 @@ class AnimationSource {
         const lower = animEventName.toLowerCase();
         const isTorchEvent = lower.includes('torch');
         if (animEventName.toLowerCase().includes('unequip') && !isTorchEvent) {
-            this.weapNonDrawnBlocker = Date.now() + 300;
             animEventName = 'SkympFakeUnequip';
         }
         else if (animEventName.toLowerCase().includes('equip') && !isTorchEvent) {
-            this.weapDrawnBlocker = Date.now() + 300;
             animEventName = 'SkympFakeEquip';
-        }
-        if (animEventName === 'SneakStart') {
-            this.sneakBlocker = true;
-            return;
-        }
-        if (animEventName === 'SneakStop') {
-            this.sneakBlocker = false;
-            return;
         }
         this.numChanges++;
         this.animEventName = animEventName;
@@ -44994,83 +50199,38 @@ class AppearanceSync {
         });
     }
     static applyHeadPartToPlayer(formId) {
-        (0, skyrimPlatform_1.printConsole)(`TEST1 ${formId}`);
         const objectReference = skyrimPlatform_1.Game.getFormEx(formId);
-        (0, skyrimPlatform_1.printConsole)('TEST2');
         const newHeadPart = skyrimPlatform_1.HeadPart.from(objectReference);
-        (0, skyrimPlatform_1.printConsole)('TEST3');
         if (!newHeadPart) {
             return;
         }
-        (0, skyrimPlatform_1.printConsole)('TEST4');
         const appearance = AppearanceSync.getAppearance(Player_1.localPlayer.actor);
-        (0, skyrimPlatform_1.printConsole)('TEST5');
-        const headParts = appearance.headpartIds.map(id => skyrimPlatform_1.HeadPart.from(skyrimPlatform_1.Game.getFormEx(id))).filter(headpart => !!headpart);
-        (0, skyrimPlatform_1.printConsole)('TEST6');
-        const extraHeadParts = HeadParstExtraSlotsConfig_1.HeadPartsExtraSlotsConfig[(0, type_1.getRaceById)(appearance.raceId)][appearance.isFemale ? Genders_1.Gender.Female : Genders_1.Gender.Male];
-        (0, skyrimPlatform_1.printConsole)('TEST7');
-        const oldHeadPart = headParts.find(item => (item === null || item === void 0 ? void 0 : item.getType()) === newHeadPart.getType());
-        (0, skyrimPlatform_1.printConsole)('TEST8');
-        if (!oldHeadPart) {
-            return;
-        }
-        (0, skyrimPlatform_1.printConsole)('TEST9');
-        if (oldHeadPart.getFormID() === newHeadPart.getFormID()) {
-            return;
-        }
-        (0, skyrimPlatform_1.printConsole)('TEST10');
-        const IndexOldHeadPart = headParts.findIndex(item => (item === null || item === void 0 ? void 0 : item.getFormID()) === oldHeadPart.getFormID());
-        (0, skyrimPlatform_1.printConsole)('TEST11');
-        const oldExtraHeadPart = headParts.find(v => oldHeadPart.hasExtraPart(v) && (v === null || v === void 0 ? void 0 : v.isExtraPart()));
-        (0, skyrimPlatform_1.printConsole)('TEST12');
-        if (oldHeadPart.getNumExtraParts() > 0 && oldExtraHeadPart) {
-            (0, skyrimPlatform_1.printConsole)('TEST13');
-            if (newHeadPart.getNumExtraParts() > 0) {
-                (0, skyrimPlatform_1.printConsole)('TEST14');
-                const newExtraHeadPartsId = extraHeadParts[newHeadPart.getType()].find(headPardIdx => {
-                    (0, skyrimPlatform_1.printConsole)('TEST15');
-                    const extraHeadPart = skyrimPlatform_1.HeadPart.from(skyrimPlatform_1.Game.getFormEx(headPardIdx));
-                    (0, skyrimPlatform_1.printConsole)('TEST16');
-                    if (newHeadPart.hasExtraPart(extraHeadPart)) {
-                        return true;
-                    }
-                });
-                (0, skyrimPlatform_1.printConsole)('TEST17');
-                const nexExtraHeadPart = skyrimPlatform_1.HeadPart.from(skyrimPlatform_1.Game.getFormEx(newExtraHeadPartsId));
-                (0, skyrimPlatform_1.printConsole)('TEST18');
-                headParts[headParts.findIndex(item => (item === null || item === void 0 ? void 0 : item.getFormID()) === oldExtraHeadPart.getFormID())] = nexExtraHeadPart;
-                (0, skyrimPlatform_1.printConsole)('TEST19');
-            }
-            else {
-                (0, skyrimPlatform_1.printConsole)('TEST20');
-                headParts.splice(headParts.findIndex(item => (item === null || item === void 0 ? void 0 : item.getFormID()) === oldExtraHeadPart.getFormID()), 1);
-            }
-            (0, skyrimPlatform_1.printConsole)('TEST21');
-        }
-        else if (newHeadPart.getNumExtraParts() > 0) {
-            (0, skyrimPlatform_1.printConsole)('TEST22');
-            const newExtraHeadPartsIds = extraHeadParts[newHeadPart.getType()].find(headPardIdx => {
-                (0, skyrimPlatform_1.printConsole)('TEST23');
-                const extraHeadPart = skyrimPlatform_1.HeadPart.from(skyrimPlatform_1.Game.getFormEx(headPardIdx));
-                if (newHeadPart.hasExtraPart(extraHeadPart)) {
-                    return true;
-                }
-            });
-            if (!newExtraHeadPartsIds) {
+        let headParts = appearance.headpartIds.map(id => skyrimPlatform_1.HeadPart.from(skyrimPlatform_1.Game.getFormEx(id))).filter(Boolean);
+        const extraHeadPartsConfig = HeadParstExtraSlotsConfig_1.HeadPartsExtraSlotsConfig[(0, type_1.getRaceById)(appearance.raceId)][appearance.isFemale ? Genders_1.Gender.Female : Genders_1.Gender.Male];
+        const oldHeadPartIndex = headParts.findIndex(item => (item === null || item === void 0 ? void 0 : item.getType()) === newHeadPart.getType());
+        if (oldHeadPartIndex !== -1) {
+            const oldHeadPart = headParts[oldHeadPartIndex];
+            if (!oldHeadPart || oldHeadPart.getFormID() === newHeadPart.getFormID()) {
                 return;
             }
-            (0, skyrimPlatform_1.printConsole)(`TEST24 ${newExtraHeadPartsIds}`);
-            const nexExtraHeadPart = skyrimPlatform_1.HeadPart.from(skyrimPlatform_1.Game.getFormEx(newExtraHeadPartsIds));
-            (0, skyrimPlatform_1.printConsole)('TEST25');
-            headParts.splice(IndexOldHeadPart + 1, 0, nexExtraHeadPart);
+            const oldExtraHeadParts = headParts.filter(v => oldHeadPart.hasExtraPart(v) && (v === null || v === void 0 ? void 0 : v.isExtraPart()));
+            oldExtraHeadParts.forEach(extraPart => {
+                const index = headParts.indexOf(extraPart);
+                if (index !== -1)
+                    headParts.splice(index, 1);
+            });
         }
-        (0, skyrimPlatform_1.printConsole)('TEST26');
-        headParts[IndexOldHeadPart] = newHeadPart;
-        (0, skyrimPlatform_1.printConsole)('TEST27');
+        if (newHeadPart.getNumExtraParts() > 0) {
+            const newExtraHeadPartsIds = extraHeadPartsConfig[newHeadPart.getType()].filter(id => {
+                const extraHeadPart = skyrimPlatform_1.HeadPart.from(skyrimPlatform_1.Game.getFormEx(id));
+                return newHeadPart.hasExtraPart(extraHeadPart);
+            });
+            const newExtraHeadParts = newExtraHeadPartsIds.map(id => skyrimPlatform_1.HeadPart.from(skyrimPlatform_1.Game.getFormEx(id)));
+            headParts.splice(oldHeadPartIndex + 1, 0, ...newExtraHeadParts);
+        }
+        headParts[oldHeadPartIndex] = newHeadPart;
         skyrimPlatform_1.TESModPlatform.resizeHeadpartsArray(Player_1.localPlayer.baseActor, headParts.length);
-        (0, skyrimPlatform_1.printConsole)('TEST28');
         headParts.forEach((v, i) => Player_1.localPlayer.baseActor.setNthHeadPart(v, i));
-        (0, skyrimPlatform_1.printConsole)('TEST29');
         Player_1.localPlayer.actor.queueNiNodeUpdate();
     }
     static resetHeadPartForPlayer(headPartType) {
@@ -45957,11 +51117,12 @@ class FormView {
                     const targetAdminName = model === null || model === void 0 ? void 0 : model.playerAdminName;
                     const name = targetIsAdmin && targetAdminName
                         ? targetAdminName
-                        : Familiars_1.FamiliarsHandler.playerKnowTarget(model === null || model === void 0 ? void 0 : model.playerPersonId) || playerIsAdmin || targetIsAdmin
-                            ? model.appearance.name
-                            : model.appearance.isFemale
-                                ? 'Незнакомка'
-                                : 'Незнакомец';
+                        :
+                            Familiars_1.FamiliarsHandler.playerKnowTarget(model === null || model === void 0 ? void 0 : model.playerPersonId) || playerIsAdmin || targetIsAdmin
+                                ? model.appearance.name
+                                : model.appearance.isFemale
+                                    ? 'Незнакомка'
+                                    : 'Незнакомец';
                     refr === null || refr === void 0 ? void 0 : refr.setDisplayName('' + `${name} [${model.playerDynamicId}]`, true);
                 }
                 (_h = skyrimPlatform_1.Actor.from(refr)) === null || _h === void 0 ? void 0 : _h.setActorValue('attackDamageMult', 0);
@@ -46035,9 +51196,6 @@ class FormView {
             if (+model.numMovementChanges !== this.movState.lastNumChanges || Date.now() - this.movState.lastApply > 2000) {
                 this.movState.lastApply = Date.now();
                 const backup = model.movement.isWeapDrawn;
-                if (forcedWeapDrawn === true || forcedWeapDrawn === false) {
-                    model.movement.isWeapDrawn = forcedWeapDrawn;
-                }
                 try {
                     (0, movementApply_1.applyMovement)(refr, model.movement, !!model.isMyClone);
                 }
@@ -46118,11 +51276,12 @@ class FormView {
             const targetAdminName = model === null || model === void 0 ? void 0 : model.playerAdminName;
             const name = targetIsAdmin && targetAdminName
                 ? targetAdminName
-                : Familiars_1.FamiliarsHandler.playerKnowTarget(model === null || model === void 0 ? void 0 : model.playerPersonId) || playerIsAdmin || targetIsAdmin
-                    ? model.appearance.name
-                    : model.appearance.isFemale
-                        ? 'Незнакомка'
-                        : 'Незнакомец';
+                :
+                    Familiars_1.FamiliarsHandler.playerKnowTarget(model === null || model === void 0 ? void 0 : model.playerPersonId) || playerIsAdmin || targetIsAdmin
+                        ? model.appearance.name
+                        : model.appearance.isFemale
+                            ? 'Незнакомка'
+                            : 'Незнакомец';
             targetActor.setDisplayName(`${name} [${model.playerDynamicId}]`, true);
             const isVisibleByPlayer = playerActor.getDistance(refr) <= exports.MAX_NICKNAME_VISIBLE && playerActor.hasLOS(refr);
             if (isVisibleByPlayer) {
