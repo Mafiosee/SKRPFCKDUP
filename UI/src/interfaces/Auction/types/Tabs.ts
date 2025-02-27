@@ -1,19 +1,13 @@
-export enum TabId {
-  Main = 'Main',
+export enum Tab {
+  Lots = 'Lots',
   SelfBets = 'SelfBets',
   SelfLots = 'SelfLots',
+  Favorites = 'Favorites',
 }
 
-export const TabName: Record<TabId, string> = {
-  [TabId.Main]: 'Главная',
-  [TabId.SelfBets]: 'Мои ставки',
-  [TabId.SelfLots]: 'Мои лоты',
+export const TabName: Record<Tab, string> = {
+  [Tab.Lots]: 'Лоты',
+  [Tab.SelfBets]: 'Мои ставки',
+  [Tab.SelfLots]: 'Мои лоты',
+  [Tab.Favorites]: 'Избранное',
 }
-
-export const TabCategoriesTitle: Record<TabId, string> = {
-  [TabId.Main]: 'Активные лоты',
-  [TabId.SelfBets]: 'Ваши ставки',
-  [TabId.SelfLots]: 'ваши ставки',
-}
-
-export const TabsList: TabId[] = [TabId.Main, TabId.SelfBets, TabId.SelfLots]

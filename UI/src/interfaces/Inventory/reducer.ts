@@ -6,6 +6,7 @@ import {
   ItemDto,
   ItemType,
   NearbyItemDto,
+  Quality,
 } from '../../shared/inventory/itemType'
 import { Grids, GridType } from '../../shared/inventory/inventoryType'
 import { Stats } from '../../shared/inventory/Stats'
@@ -59,7 +60,7 @@ const initialState: InventoryState = {
   inventory: {
     size: {
       width: 7,
-      height: 4,
+      height: 12,
     },
     maxWeight: 150,
     items: [
@@ -619,7 +620,21 @@ const initialState: InventoryState = {
     [CharSlots.Headdress]: null,
     [CharSlots.Amulet]: null,
     [CharSlots.Outerwear]: null,
-    [CharSlots.Shoes]: null,
+    [CharSlots.Shoes]: {
+      id: 0,
+      size: { width: 2, height: 2 },
+      type: ItemType.Armor,
+      info: {
+        quality: Quality.Rare,
+        name: 'qweqweqw',
+        actions: [],
+        description: 'qweqwe',
+        parameters: [],
+      },
+      image: 'qwer',
+      armor: 21,
+      durability: 0,
+    },
     [CharSlots.Bracers]: null,
     [CharSlots.Ring]: null,
     [CharSlots.FirstHand]: null,

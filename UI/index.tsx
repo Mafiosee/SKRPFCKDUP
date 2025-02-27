@@ -9,7 +9,6 @@ const store = setupStore()
 window.store = store
 // @ts-expect-error qwe
 window.disp = (type: string, payload: any) => {
-  console.log(`Dispatch ${type}: ${JSON.stringify(payload)}`)
   store.dispatch({ type, payload })
 }
 

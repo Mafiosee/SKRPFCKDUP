@@ -79,7 +79,7 @@ export const mapSlice = createSlice({
           ),
         }
         const distanceToMarker = Math.sqrt(distanceByAxis.x + distanceByAxis.y)
-        if (distanceToMarker < 250) {
+        if (distanceToMarker < 1000) {
           state.marker = null
           callClient(WorldMapEvents.SetMarker, null)
         }

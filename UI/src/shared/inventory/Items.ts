@@ -14,17 +14,19 @@ import { PotionsItemConfig } from './items/PotionsItemConfig'
 import { AlcoholsItemConfig } from './items/AlcoholItemConfig'
 import { MAXIMUM_HEALTH_OF_PLAYER, MAXIMUM_PLAYER_STAMIN } from '../Person/PersonModules'
 import { PotionsActionType } from '../PotionSystem/PotionActionType'
+import { ClothesItemConfig } from './items/ClothesItemConfig'
 
 export const DRINK_COOLDOWN = 1000 * 5
 export const FOOD_COOLDOWN = 1000 * 5
 export const FOOD_AND_WATER_COOLDOWN = 1000 * 5
+export const POTION_COOLDOWN = 1000 * 30
 
 const items: ItemConfig[] = [
 	new BackpackItemConfig({
 		id: ItemHashes.RED_BACKPACK,
 		size: { width: 2, height: 2 },
 		type: ItemType.Backpack,
-		image: 'red_backpack',
+		image: 'backpack',
 		itemId: '09002301',
 		weight: 4,
 		info: BackpackItemConfig.getInfo({
@@ -43,7 +45,7 @@ const items: ItemConfig[] = [
 		id: ItemHashes.GREEN_BACKPACK,
 		size: { width: 2, height: 2 },
 		type: ItemType.Backpack,
-		image: 'green_backpack',
+		image: 'backpack',
 		itemId: '09002307',
 		weight: 4,
 		info: BackpackItemConfig.getInfo({
@@ -62,7 +64,7 @@ const items: ItemConfig[] = [
 		id: ItemHashes.AMBER_BACKPACK,
 		size: { width: 2, height: 2 },
 		type: ItemType.Backpack,
-		image: 'amber_backpack',
+		image: 'backpack',
 		itemId: '09002308',
 		weight: 4,
 		info: BackpackItemConfig.getInfo({
@@ -81,7 +83,7 @@ const items: ItemConfig[] = [
 		id: ItemHashes.PURPLE_BACKPACK,
 		size: { width: 2, height: 2 },
 		type: ItemType.Backpack,
-		image: 'purple_backpack',
+		image: 'backpack',
 		itemId: '09002309',
 		weight: 4,
 		info: BackpackItemConfig.getInfo({
@@ -97,15 +99,15 @@ const items: ItemConfig[] = [
 		},
 	}),
 	new BackpackItemConfig({
-		id: ItemHashes.BLUE_BACKPACK,
+		id: ItemHashes.BACKPACK,
 		size: { width: 2, height: 2 },
 		type: ItemType.Backpack,
-		image: 'blue_BACKPACK',
+		image: 'backpack',
 		itemId: '09000801',
 		weight: 4,
 		info: BackpackItemConfig.getInfo({
 			quality: Quality.Normal,
-			name: 'Рюкзак с синей лампой',
+			name: 'Рюкзак',
 			weight: 4,
 			description: 'Самый простой рюкзак для увеличения переносимого веса. Имеет синюю лампу.',
 		}),
@@ -115,14 +117,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.ALIKR_HOOD,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0007BC1A',
 		image: 'alikr_hood',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: "Аликр'ский капюшон",
 			weight: 3,
@@ -136,14 +138,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COOK_HAT,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0001BCA7',
 		image: 'cook_hat',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Поварской колпак',
 			weight: 3,
@@ -156,14 +158,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HOOD_1,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00017696',
-		image: 'hood_1',
+		image: 'hat_4',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Капюшон',
 			weight: 3,
@@ -176,14 +178,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HAT_1,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000330B3',
 		image: 'hat_1',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Головной убор',
 			weight: 3,
@@ -196,14 +198,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RICHHAT_1,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000CEE84',
 		image: 'richhat_1',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Богатый головной убор',
 			weight: 3,
@@ -216,14 +218,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HAT_2,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0004223B',
 		image: 'hat_2',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Головной убор',
 			weight: 3,
@@ -236,14 +238,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HAT_3,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000209AA',
 		image: 'hat_3',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Головной убор',
 			weight: 3,
@@ -256,14 +258,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HAT_4,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000330BC',
 		image: 'hat_4',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Головной убор',
 			weight: 3,
@@ -276,14 +278,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MAGEHOOD_1,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000D3DE8',
 		image: 'magehood_1',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Капюшон мага',
 			weight: 3,
@@ -296,14 +298,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MAGEHOOD_2,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0010D6A6',
 		image: 'magehood_2',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Капюшон мага',
 			weight: 3,
@@ -316,14 +318,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MAGEHOOD_3,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0010D6A7',
 		image: 'magehood_3',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Капюшон мага',
 			weight: 3,
@@ -336,14 +338,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MOURNINGHAT_1,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000646AB',
 		image: 'mourninghat_1',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Траурный головной убор',
 			weight: 3,
@@ -356,14 +358,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.PSIJIT_HOOD,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00065B99',
 		image: 'psijit_hood',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Капюшон Псиджиков',
 			weight: 3,
@@ -376,14 +378,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.TORN_HAT,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00013104',
 		image: 'torn_hat',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Рваная шапка',
 			weight: 3,
@@ -396,14 +398,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.REDGUARD_HOOD,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000E0DD2',
 		image: 'redguard_hood',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Редгардский капюшон',
 			weight: 3,
@@ -416,14 +418,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RELIGION_HOOD,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0403B04E',
 		image: 'religion_hood',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Капюшон храмового жреца',
 			weight: 3,
@@ -436,14 +438,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.VAMPIRE_HOOD,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '02019ADE',
-		image: 'religion_hood',
+		image: 'vampire_hood',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Epic,
 			name: 'Капюшон вампира',
 			weight: 3,
@@ -456,14 +458,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.CLOTHER_WITH_BELT,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0001BE1A',
 		image: 'clother_with_belt',
 		weight: 10,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда с поясом',
 			weight: 10,
@@ -476,14 +478,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.SMITH_APRON_1,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0005B69F',
 		image: 'smith_apron_1',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Фартук кузнеца',
 			weight: 5,
@@ -496,14 +498,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.SMITH_APRON_2,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006FF37',
 		image: 'smith_apron_2',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Фартук кузнеца',
 			weight: 5,
@@ -516,14 +518,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COOK_CLOTHER,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0001BC82',
 		image: 'cook_clother',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Поварская одежда',
 			weight: 5,
@@ -536,14 +538,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_1,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000F1229',
-		image: 'hide_armor',
+		image: 'common_clother',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -556,14 +558,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_2,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000209A6',
 		image: 'common_clother_2',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -576,14 +578,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_3,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006C1DA',
 		image: 'common_clother_3',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -596,14 +598,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_4,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00017695',
 		image: 'common_clother_4',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -616,14 +618,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_5,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006C1D9',
 		image: 'common_clother_5',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -636,14 +638,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_6,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006C1D8',
 		image: 'common_clother_6',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -656,14 +658,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_7,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0003452E',
 		image: 'common_clother_7',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -676,14 +678,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_8,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000261C0',
 		image: 'common_clother_8',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -696,14 +698,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_9,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0005B6A1',
 		image: 'common_clother_9',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -716,14 +718,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_10,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006FF38',
 		image: 'common_clother_10',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -736,14 +738,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_11,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0004223C',
 		image: 'common_clother_11',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -756,14 +758,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COMMON_CLOTHER_12,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006FF45',
 		image: 'common_clother_12',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда ',
 			weight: 5,
@@ -776,14 +778,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.DUNMER_CLOTHER,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0203706a',
 		image: 'Dunmer_clother',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Epic,
 			name: 'Наряд данмера',
 			weight: 5,
@@ -796,14 +798,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BEAUTY_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000E84C4',
 		image: 'beauty_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Epic,
 			name: 'Украшенное одеяние',
 			weight: 5,
@@ -816,14 +818,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.EMBROIDERED_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000EAD49',
 		image: 'embroidered_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Расшитый наряд',
 			weight: 5,
@@ -836,14 +838,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RICH_WEAR_1,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000CEE80',
 		image: 'rich_wear_1',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Богатая одежда',
 			weight: 5,
@@ -856,14 +858,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RICH_WEAR_2,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00086991',
 		image: 'rich_wear_2',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Богатая одежда',
 			weight: 5,
@@ -876,14 +878,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RICH_WEAR_3,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000F8713',
 		image: 'rich_wear_3',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Богатая одежда',
 			weight: 5,
@@ -896,14 +898,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RICH_WEAR_4,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000F8715',
 		image: 'rich_wear_4',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Богатая одежда',
 			weight: 5,
@@ -916,14 +918,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RICH_WEAR_5,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000CEE76',
 		image: 'rich_wear_5',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Богатая одежда',
 			weight: 5,
@@ -936,14 +938,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.FUR_WEAR_1,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0008698C',
-		image: 'rich_wear_5',
+		image: 'fur_wear_1',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Плащ с меховой оторочкой',
 			weight: 5,
@@ -956,14 +958,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HAMMERFIELD_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0007BC19',
 		image: 'hammerfield_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Хаммерфелльская одежда',
 			weight: 5,
@@ -976,14 +978,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MINER_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00080697',
 		image: 'miner_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Шахтерская одежда',
 			weight: 5,
@@ -996,14 +998,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MOURNING_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000646A7',
 		image: 'mourning_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Траурная одежда',
 			weight: 5,
@@ -1016,14 +1018,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.VERY_RICH_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0005DB7B',
 		image: 'very_rich_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Роскошная одежда',
 			weight: 5,
@@ -1036,14 +1038,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.SHINY_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000E9EB5',
 		image: 'shiny_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Наряд из Сияющих одежд',
 			weight: 5,
@@ -1056,14 +1058,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.TORN_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00013105',
 		image: 'torn_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Рваный балахон',
 			weight: 5,
@@ -1076,14 +1078,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.TORN_PANTS,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0008F19A',
 		image: 'torn_pants',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Рваные штаны',
 			weight: 5,
@@ -1096,14 +1098,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.REDGUARD_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000E0DD0',
 		image: 'redguard_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Редгардская одежда',
 			weight: 5,
@@ -1116,14 +1118,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.VERY_RICH_WEAR_2,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000E84C6',
 		image: 'very_rich_wear_2',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Изящный наряд',
 			weight: 5,
@@ -1136,14 +1138,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HOMESPUN_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0003C9FE',
 		image: 'homespun_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Домотканая одежда',
 			weight: 5,
@@ -1156,14 +1158,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.INNWORKER_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000D191F',
 		image: 'innworker_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда трактирщика',
 			weight: 5,
@@ -1176,14 +1178,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.VAMPIRE_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '02019ADF',
 		image: 'vampire_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Одеяние вампира',
 			weight: 5,
@@ -1196,14 +1198,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BLACK_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00106661',
 		image: 'black_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Чёрное одеяние',
 			weight: 5,
@@ -1216,14 +1218,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BLUE_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000A199B',
 		image: 'blue_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Синее одеяние',
 			weight: 5,
@@ -1236,14 +1238,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COLLEGE_ADEPT_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000D3DEA',
 		image: 'college_adept_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одеяние Адепта Коллегии',
 			weight: 5,
@@ -1256,14 +1258,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.GREEN_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
-		itemId: '0310CFF0',
+		type: ItemType.Clothes,
+		itemId: '0010CFF0',
 		image: 'green_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Зелёное одеяние',
 			weight: 5,
@@ -1276,16 +1278,16 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.GREYBEARDS_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00036A44',
 		image: 'greybeards_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
-			name: 'Зелёное одеяние',
+			name: 'Одеяние седобородых',
 			weight: 5,
 			type: ArmorItemType.Clothes,
 			description: '',
@@ -1296,14 +1298,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HOLY_BLACKWEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00107108',
 		image: 'holy_blackwear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Чёрное одеяние с капюшоном',
 			weight: 5,
@@ -1316,14 +1318,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HOLY_HOODWEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00107106',
 		image: 'holy_hoodwear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Монашеская ряса с капюшоном',
 			weight: 5,
@@ -1336,14 +1338,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MAGE_WEAR_1,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006B46B',
 		image: 'mage_wear_1',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Одеяние мага',
 			weight: 5,
@@ -1356,14 +1358,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MAGE_WEAR_2,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006B46B',
 		image: 'mage_wear_2',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Одеяние мага',
 			weight: 5,
@@ -1376,14 +1378,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HOLY_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000BACF3',
 		image: 'holy_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Монашеская ряса',
 			weight: 5,
@@ -1396,14 +1398,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.PSIJIT_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00065B94',
 		image: 'psijit_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Одеяние псиджиков',
 			weight: 5,
@@ -1416,14 +1418,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.VERMINA_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000E739B',
 		image: 'vermina_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одеяние Вермины',
 			weight: 5,
@@ -1436,14 +1438,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RED_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
-		itemId: '0310CFF2',
+		type: ItemType.Clothes,
+		itemId: '0010CFF2',
 		image: 'red_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Красное одеяние',
 			weight: 5,
@@ -1456,14 +1458,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.TALMOR_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00065BBF',
 		image: 'talmor_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Талморское одеяние',
 			weight: 5,
@@ -1476,14 +1478,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.GLOVES,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000261C1',
 		image: 'gloves',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Перчатки',
 			weight: 3,
@@ -1496,14 +1498,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MYTH_GLOVES,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00026C3B',
 		image: 'myth_gloves',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Мистические настроечные перчатки',
 			weight: 3,
@@ -1516,14 +1518,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MYTHDAWN_GLOVES,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000B145B',
 		image: 'mythdawn_gloves',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Перчатки Мифического Рассвета',
 			weight: 3,
@@ -1536,14 +1538,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.PSIJIT_GLOVES,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00065B9D',
 		image: 'psijit_gloves',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Перчатки Псиджиков',
 			weight: 3,
@@ -1556,14 +1558,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.TALMOR_GLOVES,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00065BB3',
 		image: 'talmor_gloves',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Талморские перчатки',
 			weight: 3,
@@ -1576,14 +1578,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.VAMPIRE_GLOVES,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '02019AE3',
 		image: 'vampire_gloves',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Вампирские перчатки',
 			weight: 3,
@@ -1596,14 +1598,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_1,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0001BE1B',
 		image: 'boots_1',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1616,14 +1618,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_2,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000209A5',
 		image: 'boots_2',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1636,14 +1638,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_3,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000261BD',
 		image: 'boots_3',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1656,14 +1658,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_4,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0003452F',
 		image: 'boots_4',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1676,14 +1678,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_5,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006B46C',
-		image: 'boots_5',
+		image: 'redguard_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1696,14 +1698,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_6,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000D1921',
-		image: 'boots_6',
+		image: 'college_boots_2',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1716,14 +1718,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_7,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000BACD7',
 		image: 'boots_7',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1736,14 +1738,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_8,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000C5D12',
 		image: 'boots_8',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1756,14 +1758,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_9,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000E0DD4',
 		image: 'boots_9',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1776,14 +1778,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_10,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0004223D',
 		image: 'boots_10',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1796,14 +1798,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_11,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00080699',
 		image: 'boots_11',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1816,14 +1818,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.BOOTS_12,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000C36E8',
 		image: 'boots_12',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги',
 			weight: 3,
@@ -1836,14 +1838,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COLLEGE_BOOTS_1,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0010E2CE',
 		image: 'college_boots_1',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги ученика Коллегии',
 			weight: 3,
@@ -1856,14 +1858,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.COLLEGE_BOOTS_2,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0010E2DC',
 		image: 'college_boots_2',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги ученика Коллегии',
 			weight: 3,
@@ -1876,14 +1878,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.SHACKLES_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000CEE78',
 		image: 'shackles_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги с оковкой',
 			weight: 3,
@@ -1896,14 +1898,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.CULTIST_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '02037b8E',
 		image: 'cultist_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги члена культа',
 			weight: 3,
@@ -1916,14 +1918,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.DUNMER_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0203705A',
 		image: 'dunmer_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Ботинки данмера',
 			weight: 3,
@@ -1936,14 +1938,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RICH_BOOTS_1,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00086993',
 		image: 'rich_boots_1',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Богатые сапоги',
 			weight: 3,
@@ -1956,14 +1958,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RICH_BOOTS_2,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000CEE82',
 		image: 'rich_boots_2',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Богатые сапоги',
 			weight: 3,
@@ -1976,14 +1978,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.WINDINGS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0003CA00',
 		image: 'windings',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Ножные обмотки',
 			weight: 3,
@@ -1996,14 +1998,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.FUR_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0005DB7E',
 		image: 'fur_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги на меху',
 			weight: 3,
@@ -2016,14 +2018,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MYTHDAWN_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000B1460',
-		image: 'dunmer_boots',
+		image: 'mythdawn_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Ботинки Мифического Рассвета',
 			weight: 3,
@@ -2036,14 +2038,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.SOFT_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0008698E',
 		image: 'soft_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Мягкие сапоги',
 			weight: 3,
@@ -2056,14 +2058,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.PSIJIT_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00065B9B',
 		image: 'psijit_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги Псиджиков',
 			weight: 3,
@@ -2076,14 +2078,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.TORN_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00013106',
 		image: 'torn_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Unusual,
 			name: 'Рваные сапоги',
 			weight: 3,
@@ -2096,14 +2098,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.REDGUARD_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0007BC15',
 		image: 'redguard_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Редгардские сапоги',
 			weight: 3,
@@ -2116,14 +2118,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.SHOES_1,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00018801',
-		image: 'hide_boots',
+		image: 'shoes',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Ботинки',
 			weight: 3,
@@ -2136,14 +2138,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.SHOES_2,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0005B6A0',
-		image: 'shoes_2',
+		image: 'shoes',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Ботинки',
 			weight: 3,
@@ -2156,14 +2158,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.SHOES_3,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000E80A8',
-		image: 'shoes_3',
+		image: 'shoes',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Ботинки',
 			weight: 3,
@@ -2176,14 +2178,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.SHOES_4,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0005b69E',
 		image: 'shoes_4',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Ботинки',
 			weight: 3,
@@ -2196,14 +2198,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.HOLY_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0403B04B',
 		image: 'holy_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Сапоги храмового жреца',
 			weight: 3,
@@ -2216,14 +2218,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.TALMOR_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00065BAC',
-		image: 'holy_boots',
+		image: 'talmor_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Талморские сапоги',
 			weight: 3,
@@ -2236,14 +2238,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.VAMPIRE_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '02019AE1',
-		image: 'holy_boots',
+		image: 'vampire_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Вампирские сапоги',
 			weight: 3,
@@ -2256,14 +2258,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.IMPERIAL_MANTLE,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00015516',
 		image: 'imperial_mantle',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Epic,
 			name: 'Императорская мантия',
 			weight: 3,
@@ -2276,14 +2278,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MYTHDAWN_WEAR_1,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000B144D',
 		image: 'mythdawn_wear_1',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Epic,
 			name: 'Одеяние Мифического Рассвета',
 			weight: 5,
@@ -2296,14 +2298,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.MYTHDAWN_WEAR_2,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000B144D',
 		image: 'mythdawn_wear_2',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Epic,
 			name: 'Одеяние Мифического Рассвета',
 			weight: 5,
@@ -2316,14 +2318,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.NOCTURNAL_WEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00088952',
 		image: 'nocturnal_wear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Одежда Ноктюрнал',
 			weight: 5,
@@ -2336,14 +2338,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.ELEGANT_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000E40DE',
 		image: 'elegant_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Нарядные ботинки',
 			weight: 3,
@@ -2356,14 +2358,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.ELEGANT_CLOTHER,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000E40DF',
 		image: 'elegant_clother',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Нарядная одежда',
 			weight: 5,
@@ -2376,14 +2378,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.RED_HOODWEAR,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
-		itemId: '0210CFEB',
+		type: ItemType.Clothes,
+		itemId: '0010CFEB',
 		image: 'red_hoodwear',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Красное одеяние с капюшоном',
 			weight: 5,
@@ -2396,14 +2398,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.SHEOGATH_CLOTHER,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000C7CBB',
 		image: 'sheogath_clother',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Наряд Шеогората',
 			weight: 5,
@@ -2416,14 +2418,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.ULFRIC_CLOTHER,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00062303',
 		image: 'ulfric_clother',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Epic,
 			name: 'Одежда Ульфрика',
 			weight: 5,
@@ -2436,14 +2438,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.ULFRIC_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00062311',
 		image: 'ulfric_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Epic,
 			name: 'Сапоги Ульфрика',
 			weight: 3,
@@ -2456,14 +2458,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.ULFRIC_BRACERS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006230B',
 		image: 'ulfric_bracers',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Epic,
 			name: 'Наручи Ульфрика',
 			weight: 3,
@@ -2476,14 +2478,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.WEDDING_CLOTHER,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00088956',
 		image: 'wedding_clother',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Свадебный наряд',
 			weight: 5,
@@ -2496,14 +2498,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.WEDDING_HAT,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0008895A',
 		image: 'wedding_hat',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Свадебный венец',
 			weight: 3,
@@ -2516,14 +2518,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.WEDDING_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00088958',
 		image: 'wedding_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Свадебные сандалии',
 			weight: 3,
@@ -2536,14 +2538,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.CICERON_CLOTHER,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006492C',
 		image: 'ciceron_clother',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Одежда Цицерона',
 			weight: 5,
@@ -2556,14 +2558,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.CICERON_HAT,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006492E',
 		image: 'ciceron_hat',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Головной убор Цицерона',
 			weight: 3,
@@ -2576,14 +2578,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.CICERON_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '0006492A',
 		image: 'ciceron_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Сапоги Цицерона',
 			weight: 3,
@@ -2596,14 +2598,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.CICERON_GLOVES,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '00088958',
 		image: 'ciceron_gloves',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Перчатки Цицерона',
 			weight: 3,
@@ -2616,14 +2618,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.JESTER_CLOTHER,
 		size: { width: 2, height: 3 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000CEE6E',
 		image: 'jester_clother',
 		weight: 5,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Шутовская одежда',
 			weight: 5,
@@ -2636,14 +2638,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.JESTER_HAT,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000CEE72',
 		image: 'jester_hat',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Шутовской головной убор',
 			weight: 3,
@@ -2656,14 +2658,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.JESTER_BOOTS,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000CEE70',
 		image: 'jester_boots',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Rare,
 			name: 'Шутовские сапоги',
 			weight: 3,
@@ -2676,14 +2678,14 @@ const items: ItemConfig[] = [
 			},
 		},
 	}),
-	new ArmorItemConfig({
+	new ClothesItemConfig({
 		id: ItemHashes.JESTER_GLOVES,
 		size: { width: 2, height: 2 },
-		type: ItemType.Armor,
+		type: ItemType.Clothes,
 		itemId: '000CEE74',
 		image: 'jester_gloves',
 		weight: 3,
-		info: ArmorItemConfig.getInfo({
+		info: ClothesItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Шутовские перчатки',
 			weight: 3,
@@ -4340,7 +4342,7 @@ const items: ItemConfig[] = [
 		weight: 3,
 		itemId: '000E8B39',
 		info: RodItemConfig.getInfo({
-			quality: Quality.Normal,
+			quality: Quality.Unusual,
 			name: 'Удочка новичка',
 			weight: 3,
 			description: 'Идеальный выбор для начинающих рыболовов, эта удочка прощает ошибки и помогает освоить азы рыбной ловли.',
@@ -4354,7 +4356,7 @@ const items: ItemConfig[] = [
 		weight: 3,
 		itemId: '000E8B39',
 		info: RodItemConfig.getInfo({
-			quality: Quality.Unusual,
+			quality: Quality.Normal,
 			name: 'Удочка опытного',
 			weight: 3,
 			description:
@@ -4435,7 +4437,7 @@ const items: ItemConfig[] = [
 		weight: 1,
 		info: WeaponItemConfig.getInfo({
 			quality: Quality.Unusual,
-			name: '',
+			name: 'Кулаки',
 			weight: 0,
 			type: WeaponItemType.OneHanded,
 			description: '',
@@ -4485,7 +4487,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -5716,7 +5718,7 @@ const items: ItemConfig[] = [
 		type: ItemType.Weapon,
 		weaponRange: WeaponRange.MELEE,
 		category: WeaponCategory.BattleAxe,
-		itemId: '00013981',
+		itemId: '00013980',
 		image: 'iron_battleaxe',
 		weight: 20,
 		info: WeaponItemConfig.getInfo({
@@ -5739,7 +5741,7 @@ const items: ItemConfig[] = [
 		type: ItemType.Weapon,
 		weaponRange: WeaponRange.MELEE,
 		category: WeaponCategory.BattleAxe,
-		itemId: '0001398a',
+		itemId: '0009F25F',
 		image: 'steel_battleaxe',
 		weight: 21,
 		info: WeaponItemConfig.getInfo({
@@ -5762,7 +5764,7 @@ const items: ItemConfig[] = [
 		type: ItemType.Weapon,
 		weaponRange: WeaponRange.MELEE,
 		category: WeaponCategory.BattleAxe,
-		itemId: '00013992',
+		itemId: '0001398C',
 		image: 'orcish_battleaxe',
 		weight: 22,
 		info: WeaponItemConfig.getInfo({
@@ -5785,7 +5787,7 @@ const items: ItemConfig[] = [
 		type: ItemType.Weapon,
 		weaponRange: WeaponRange.MELEE,
 		category: WeaponCategory.BattleAxe,
-		itemId: '0001399a',
+		itemId: '00013994',
 		image: 'dwarven_battleaxe',
 		weight: 23,
 		info: WeaponItemConfig.getInfo({
@@ -5808,7 +5810,7 @@ const items: ItemConfig[] = [
 		type: ItemType.Weapon,
 		weaponRange: WeaponRange.MELEE,
 		category: WeaponCategory.BattleAxe,
-		itemId: '000139a2',
+		itemId: '0001399C',
 		image: 'elven_battleaxe',
 		weight: 24,
 		info: WeaponItemConfig.getInfo({
@@ -5831,7 +5833,7 @@ const items: ItemConfig[] = [
 		type: ItemType.Weapon,
 		weaponRange: WeaponRange.MELEE,
 		category: WeaponCategory.BattleAxe,
-		itemId: '000139aa',
+		itemId: '000139A4',
 		image: 'glass_battleaxe',
 		weight: 25,
 		info: WeaponItemConfig.getInfo({
@@ -5854,7 +5856,7 @@ const items: ItemConfig[] = [
 		type: ItemType.Weapon,
 		weaponRange: WeaponRange.MELEE,
 		category: WeaponCategory.BattleAxe,
-		itemId: '000139b2',
+		itemId: '000139AC',
 		image: 'ebony_battleaxe',
 		weight: 26,
 		info: WeaponItemConfig.getInfo({
@@ -5877,12 +5879,12 @@ const items: ItemConfig[] = [
 		type: ItemType.Weapon,
 		weaponRange: WeaponRange.MELEE,
 		category: WeaponCategory.BattleAxe,
-		itemId: '000139ba',
+		itemId: '000139B4',
 		image: 'daedric_battleaxe',
 		weight: 27,
 		info: WeaponItemConfig.getInfo({
 			quality: Quality.Legendary,
-			name: 'Даэдрический двуручный меч',
+			name: 'Даэдрическая секира',
 			weight: 27,
 			type: WeaponItemType.TwoHanded,
 			description: 'Даэдрическая секира — это базовый инструмент любого воина, служащий верой и правдой в столкновениях с врагами.',
@@ -5900,7 +5902,7 @@ const items: ItemConfig[] = [
 		type: ItemType.Weapon,
 		weaponRange: WeaponRange.MELEE,
 		category: WeaponCategory.BattleAxe,
-		itemId: '02014fd0',
+		itemId: '02014FC3',
 		image: 'dragonbone_battleaxe',
 		weight: 30,
 		info: WeaponItemConfig.getInfo({
@@ -6380,7 +6382,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -6560,7 +6562,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -6660,7 +6662,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -6760,7 +6762,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -6860,7 +6862,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -6960,7 +6962,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -7060,7 +7062,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -7160,7 +7162,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -7260,7 +7262,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -7360,7 +7362,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -7460,7 +7462,7 @@ const items: ItemConfig[] = [
 		}),
 		option: {
 			wearable: {
-				slot: [CharSlots.FirstHand],
+				slot: [CharSlots.SecondHand],
 			},
 		},
 	}),
@@ -7470,7 +7472,7 @@ const items: ItemConfig[] = [
 		type: ItemType.Resources,
 		image: 'ore',
 		weight: 2,
-		itemId: '00034C5E',
+		itemId: '00071CF3',
 		info: CommonItemConfig.getInfo({
 			quality: Quality.Normal,
 			name: 'Руда',
@@ -7478,6 +7480,21 @@ const items: ItemConfig[] = [
 			description: 'Кусок горной породы. При переплавке есть шанс получить ценный ресурс.',
 		}),
 		option: { maxStack: 25 },
+	}),
+	new CommonItemConfig({
+		id: ItemHashes.REPAIR_KIT,
+		size: { width: 2, height: 1 },
+		type: ItemType.Other,
+		image: 'repair_kit',
+		weight: 0.5,
+		itemId: '0005CAE1',
+		info: CommonItemConfig.getInfo({
+			quality: Quality.Unusual,
+			name: 'Ремонтный набор',
+			weight: 0.5,
+			description: 'Необходим для ремонта экипировки. Исчезает после использования.',
+		}),
+		option: { maxStack: 10 },
 	}),
 ]
 

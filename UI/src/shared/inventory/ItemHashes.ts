@@ -112,7 +112,6 @@ export enum ItemHashes {
 	IRON_DAGGER = 'iron_dagger',
 	IRON_WARHAMMER = 'iron_warhammer',
 	IRON_GREATSWORD = 'iron_greatsword',
-	STAFF_OF_THE_HEALING_HAND = 'staff_of_the_healing_hand',
 	STEEL_DAGGER = 'steel_dagger',
 	ORCISH_DAGGER = 'orcish_dagger',
 	DWARVEN_DAGGER = 'dwarven_dagger',
@@ -378,4 +377,5 @@ export enum ItemHashes {
 	RICH_WEAR_3 = 'rich_wear_3',
 	RICH_WEAR_4 = 'rich_wear_4',
 	RICH_WEAR_5 = 'rich_wear_5',
+	REPAIR_KIT = 'repair_kit',
 }

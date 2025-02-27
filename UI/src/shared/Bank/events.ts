@@ -5,6 +5,7 @@ export enum BankEvents {
   PayRentHouse = 'bank:payRentHouse',
   PayRentBusiness = 'bank:payRentBusiness',
   WithdrawFaction = 'bank:withdrawFaction',
+  ReplenishFaction = 'bank:replenishFaction',
   BusinessWithdraw = 'bank:businessWithdraw',
   BusinessReplenish = 'bank:businessReplenish',
 }
@@ -24,6 +25,9 @@ export type BankPayloads = {
     days: number
   }
   [BankEvents.WithdrawFaction]: {
+    sum: number
+  }
+  [BankEvents.ReplenishFaction]: {
     sum: number
   }
   [BankEvents.BusinessWithdraw]: {

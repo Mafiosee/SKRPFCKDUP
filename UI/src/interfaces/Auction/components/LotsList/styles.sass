@@ -1,0 +1,8 @@
+// Imports
+import ___CSS_LOADER_API_SOURCEMAP_IMPORT___ from "../../../../../node_modules/css-loader/dist/runtime/sourceMaps.js";
+import ___CSS_LOADER_API_IMPORT___ from "../../../../../node_modules/css-loader/dist/runtime/api.js";
+var ___CSS_LOADER_EXPORT___ = ___CSS_LOADER_API_IMPORT___(___CSS_LOADER_API_SOURCEMAP_IMPORT___);
+// Module
+___CSS_LOADER_EXPORT___.push([module.id, `.Auction .LotsList{width:100%;height:100%;display:flex;flex-direction:row;flex-wrap:wrap;align-content:flex-start;gap:2.22216vh 2.22216vh;overflow-y:auto}.Auction .LotsList.-small{gap:1.29626vh}.Auction .LotsList::-webkit-scrollbar{width:.46295vh;background:hsla(0,0%,100%,.05)}.Auction .LotsList::-webkit-scrollbar-thumb{background:hsla(0,0%,100%,.32)}`, "",{"version":3,"sources":["webpack://./src/interfaces/Auction/components/LotsList/styles.sass","webpack://./src/styles/mixins/_flex-row-wrap.sass"],"names":[],"mappings":"AAEA,mBACE,UAAA,CACA,WAAA,CCHA,YAAA,CACA,kBAAA,CACA,cAAA,CACA,wBAAA,CACA,uBAAA,CDCA,eAAA,CAEA,0BACE,aAAA,CAEF,sCACE,cAAA,CACA,8BAAA,CAEF,4CACE,8BAAA","sourcesContent":["@import \"src/styles/mixins\"\r\n\r\n.Auction .LotsList\r\n  width: 100%\r\n  height: 100%\r\n  +flex-row-wrap(24 *$hPoint, 24 *$hPoint)\r\n  overflow-y: auto\r\n\r\n  &.-small\r\n    gap: 14 *$hPoint\r\n\r\n  &::-webkit-scrollbar\r\n    width: 5 *$hPoint\r\n    background: rgba(255, 255, 255, .05)\r\n\r\n  &::-webkit-scrollbar-thumb\r\n    background: rgba(255, 255, 255, .32)","=flex-row-wrap($gapRow, $gapCol)\r\n  display: flex\r\n  flex-direction: row\r\n  flex-wrap: wrap\r\n  align-content: flex-start\r\n  gap: $gapCol $gapRow\r\n"],"sourceRoot":""}]);
+// Exports
+export default ___CSS_LOADER_EXPORT___;

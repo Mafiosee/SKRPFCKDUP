@@ -1,109 +1,123 @@
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef } from 'react'
 import './styles.sass'
 import { useAppDispatch, useAppSelector } from '../../hooks/redux'
-import { useEscClose } from '../../hooks/useEscClose'
 import { AuctionEvents } from '../../shared/Auction/events'
-import { callClient } from '../../utils/api'
-import { TabId } from './types/Tabs'
 import Header from './components/Header'
-import Categories from './components/Categories'
-import { LotType } from '../../shared/Auction/LotType'
-import LotList from './components/LotList'
-import LotInfo from './components/LotInfo'
+import { Tab } from './types/Tabs'
+import { KeyCodes } from '../../utils/keyCodes'
+import TabLots from './components/TabLots'
+import LotsBlock from './components/LotsBlock'
 import { auctionActions } from './reducer'
-import BetLot from './components/BetLot'
-import CreateLot from './components/CreateLot'
+import PopupOpenedLot from './components/PopupOpenedLot'
+import PopupCreateLot from './components/PopupCreateLot'
+import { IntervalRef } from '../../types/intervalRef'
+import { callClient } from '../../utils/api'
 
 const Auctions: React.FC = () => {
   const dispatch = useAppDispatch()
-  const { isOpen, lots } = useAppSelector((state) => state.auction)
-  useEscClose({
-    isOpenInterface: isOpen,
-    closeEvent: AuctionEvents.CloseRequest,
-  })
-  const [activeTabId, setActiveTabId] = useState(TabId.Main)
-  const [activeCategoryId, setActiveCategoryId] = useState<LotType | null>(null)
-  const [activeLotId, setActiveLotId] = useState<number | null>(null)
-  const [tick, setTick] = useState(false)
-  const [openedBetLotId, setOpenedBetLotId] = useState<number | null>(null)
-  const [openedCreateLot, setOpenedCreateLot] = useState(false)
+  const { isOpen, activeTab, openedLotId, openedCreateLot, lots, locations } =
+    useAppSelector((state) => state.auction)
+  const intervalRef = useRef<IntervalRef>(null)
 
   useEffect(() => {
+    if (intervalRef.current != null) {
+      clearInterval(intervalRef.current)
+    }
     if (!isOpen) {
       return
     }
-    setTimeout(() => {
-      setTick((prev) => !prev)
-      dispatch(auctionActions.decrementTimers())
-    }, 1000)
-  }, [isOpen, tick])
+    intervalRef.current = setInterval(
+      () => dispatch(auctionActions.decrementSecondsLeft()),
+      1000,
+    )
+  }, [isOpen, lots])
 
   useEffect(() => {
-    setActiveTabId(TabId.Main)
-    setActiveCategoryId(null)
-    setOpenedBetLotId(null)
-    setOpenedCreateLot(false)
-  }, [isOpen])
+    const newLocations: string[] = []
+    lots.forEach((lot) => {
+      if (!newLocations.includes(lot.location)) {
+        newLocations.push(lot.location)
+      }
+    })
+    newLocations.sort((a, b) => a.localeCompare(b))
+    if (JSON.stringify(locations) === JSON.stringify(newLocations)) {
+      return
+    }
+    dispatch(auctionActions.setLocations(newLocations))
+    dispatch(auctionActions.setActiveLocationIndex(null))
+  }, [lots])
 
-  const isOpenEmptySelfLots =
-    activeTabId === TabId.SelfLots && !lots.filter((lot) => lot.isSelf).length
+  const handleKeyUp = useCallback(
+    (event: KeyboardEvent) => {
+      if (!isOpen) {
+        return
+      }
+      switch (event.keyCode) {
+        case KeyCodes.Q: {
+          const tabsList = Object.values(Tab)
+          const activeTabIndex = tabsList.findIndex((tab) => tab === activeTab)
+          let newActiveTabIndex = activeTabIndex - 1
+          if (newActiveTabIndex < 0) {
+            newActiveTabIndex = 0
+          }
+          dispatch(auctionActions.setActiveTab(tabsList[newActiveTabIndex]))
+          break
+        }
+        case KeyCodes.E: {
+          const tabsList = Object.values(Tab)
+          const activeTabIndex = tabsList.findIndex((tab) => tab === activeTab)
+          let newActiveTabIndex = activeTabIndex + 1
+          const maxIndex = tabsList.length - 1
+          if (newActiveTabIndex > maxIndex) {
+            newActiveTabIndex = maxIndex
+          }
+          dispatch(auctionActions.setActiveTab(tabsList[newActiveTabIndex]))
+          break
+        }
+        case KeyCodes.Esc: {
+          if (openedLotId != null) {
+            dispatch(auctionActions.setOpenedLotId(null))
+          } else if (openedCreateLot) {
+            dispatch(auctionActions.setOpenedCreateLot(false))
+          } else {
+            callClient(AuctionEvents.CloseRequest)
+          }
+        }
+      }
+    },
+    [activeTab, isOpen, openedLotId, openedCreateLot],
+  )
+
+  useEffect(() => {
+    document.addEventListener('keyup', handleKeyUp)
+    return () => {
+      document.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [handleKeyUp])
+
+  const getCurrentTab = () => {
+    switch (activeTab) {
+      case Tab.Lots:
+        return <TabLots />
+      default:
+        return <LotsBlock />
+    }
+  }
 
   return isOpen ? (
     <div className="Auction">
-      <div className="background">
-        <div className="shadow" />
-        <div className="image" />
-      </div>
-      <div className={`window ${isOpenEmptySelfLots && '-empty'}`}>
-        <div className="content">
-          <Header
-            activeTabId={activeTabId}
-            setActiveTabId={(tabId: TabId) => setActiveTabId(tabId)}
-            openCreateLot={() => setOpenedCreateLot(true)}
-          />
-          <LotInfo
-            activeTabId={activeTabId}
-            activeLotId={activeLotId}
-            openBet={() => setOpenedBetLotId(activeLotId)}
-          />
-          <Categories
-            activeTabId={activeTabId}
-            activeCategoryId={activeCategoryId}
-            setActiveCategoryId={(categoryId: LotType | null) =>
-              setActiveCategoryId(categoryId)
-            }
-          />
-          <LotList
-            activeTabId={activeTabId}
-            activeCategoryId={activeCategoryId}
-            activeLotId={activeLotId}
-            setActiveLotId={(lotId: number | null) => setActiveLotId(lotId)}
-          />
-          {isOpenEmptySelfLots && (
-            <div className="empty">
-              <div className="icon" />
-              <div className="text">
-                у вас еще нет созданных лотов, но вы можете
-                <span>создать первый</span>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="title">Аукцион</div>
-        <div
-          className="close"
-          onClick={() => callClient(AuctionEvents.CloseRequest)}
+      <div className="background" />
+      <div className="content">
+        <Header
+          activeTab={activeTab}
+          setActiveTab={(tab: Tab) =>
+            dispatch(auctionActions.setActiveTab(tab))
+          }
         />
+        {getCurrentTab()}
       </div>
-
-      <BetLot
-        openedBetLotId={openedBetLotId}
-        close={() => setOpenedBetLotId(null)}
-      />
-      <CreateLot
-        opened={openedCreateLot}
-        close={() => setOpenedCreateLot(false)}
-      />
+      <PopupOpenedLot />
+      <PopupCreateLot />
     </div>
   ) : null
 }

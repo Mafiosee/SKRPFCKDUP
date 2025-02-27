@@ -3,14 +3,24 @@ import type { PayloadAction } from '@reduxjs/toolkit'
 
 type DeathScreenState = {
   isOpen: boolean
-  lifeTime: number
-  showWaitBtn: boolean
+  info: {
+    killer: string
+    datetime: string
+    weapon: string
+  }
+  secondsLeft: number
+  enabledDieButton: boolean
 }
 
 const initialState: DeathScreenState = {
   isOpen: false,
-  showWaitBtn: true,
-  lifeTime: 6,
+  info: {
+    killer: 'Луцио голубая грива [59][308]',
+    datetime: '02.02.2025 01:45:38',
+    weapon: 'Кинжал Драконьева края',
+  },
+  secondsLeft: 10,
+  enabledDieButton: false,
 }
 
 export const DeathScreenSlice = createSlice({
@@ -23,26 +33,25 @@ export const DeathScreenSlice = createSlice({
     hide(state) {
       state.isOpen = false
     },
-    setSeconds(state, action: PayloadAction<{ value: number }>) {
-      state.lifeTime = action.payload.value
+    setInfo(state, action: PayloadAction<typeof initialState.info>) {
+      state.info = action.payload
     },
-    addSeconds(state, action: PayloadAction<{ value: number }>) {
-      state.lifeTime = state.lifeTime + action.payload.value
+    setSecondsLeft(state, action: PayloadAction<{ value: number }>) {
+      state.secondsLeft = action.payload.value
     },
-    setShowWaitBtn(state, action: PayloadAction<boolean>) {
-      state.showWaitBtn = action.payload
+    addSecondsLeft(state, action: PayloadAction<{ value: number }>) {
+      state.secondsLeft += action.payload.value
     },
-    activateDeathButton(state) {
-      state.lifeTime = 0
-      state.showWaitBtn = false
+    setEnabledDieButton(state, action: PayloadAction<boolean>) {
+      state.enabledDieButton = action.payload
     },
 
     // front
-    timerLifeTime(state) {
-      if (state.lifeTime <= 0) {
+    decrementSecondsLeft(state) {
+      if (state.secondsLeft <= 0) {
         return
       }
-      state.lifeTime = state.lifeTime - 1
+      state.secondsLeft -= 1
     },
   },
 })

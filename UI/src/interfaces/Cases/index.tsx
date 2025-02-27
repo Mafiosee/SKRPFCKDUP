@@ -413,8 +413,15 @@ const Cases = () => {
             className={`button -warehouse ${step !== Step.Idle && '-hidden'}`}
             onClick={() => {
               dispatch(casesActions.hide())
-              dispatch(escMenuActions.show({ navId: NavId.DonateStore }))
-              dispatch(donateStoreActions.setTab(Tab.Warehouse))
+              setTimeout(
+                () =>
+                  dispatch(escMenuActions.show({ navId: NavId.DonateStore })),
+                100,
+              )
+              setTimeout(
+                () => dispatch(donateStoreActions.setTab(Tab.Warehouse)),
+                200,
+              )
             }}
           >
             На склад

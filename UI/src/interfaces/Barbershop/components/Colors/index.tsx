@@ -40,6 +40,7 @@ const Colors: React.FC<Props> = ({ activeColorId, setActiveColorId }) => {
     colors.map(({ id, value }) => {
       const isActive = activeColorId === id;
       const setActive = () => setActiveColorId(id);
+      const [a, r, g, b] = value.toString(16).split(/(?=(?:..)*$)/);
 
       return (
         <div
@@ -59,7 +60,7 @@ const Colors: React.FC<Props> = ({ activeColorId, setActiveColorId }) => {
               fillRule="evenodd"
               clipRule="evenodd"
               d="M24.0001 7.77293C24.8392 7.77293 25.6093 7.4832 26.2122 7.00012L44 24.4561L26.2124 41.9119C25.6094 41.4287 24.8393 41.1389 24.0001 41.1389C23.1609 41.1389 22.3907 41.4287 21.7877 41.912L4 24.4561L21.7879 7C22.3909 7.48315 23.161 7.77293 24.0001 7.77293Z"
-              fill={value}
+              fill={`#${r}${g}${b}`}
             />
           </svg>
         </div>

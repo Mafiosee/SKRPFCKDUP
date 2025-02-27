@@ -94,7 +94,7 @@ export const smelterSlice = createSlice({
     },
     setRecipes(state, action: PayloadAction<RecipeDTO[]>) {
       state.recipes = action.payload
-      callClient('logger', JSON.stringify(action.payload))
+      // callClient('logger', JSON.stringify(action.payload))
     },
     setCurrentCraft(state, action: PayloadAction<CurrentCraft>) {
       state.currentCraft = action.payload

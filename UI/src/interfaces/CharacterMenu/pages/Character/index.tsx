@@ -15,7 +15,6 @@ import {
   GenderNames,
   RaceNames,
 } from '../../../SelectCharacter/components/Character'
-import { VipsInfo } from '../../../DonateStore/data/vip'
 
 const NotHasVip = 'inactive'
 
@@ -146,9 +145,7 @@ export const Character: React.FC = () => {
             image={CardBG[CardNames.Vip]}
             blockIcon={IconsNames.Star}
             blockName={'VIP-STATUS'}
-            status={
-              blocksInfo?.vip ? VipsInfo[blocksInfo.vip.status].name : NotHasVip
-            }
+            status={blocksInfo?.vip ? blocksInfo.vip.status : NotHasVip}
             description={blocksInfo.vip ? blocksInfo.vip.description : ''}
           />
         </div>

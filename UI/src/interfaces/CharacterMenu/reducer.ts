@@ -45,7 +45,7 @@ const initialState: CharacterMenuState = {
       // business: {
       //   name: '',
       // },
-      // vip: null,
+      // vip: undefined,
     },
   },
   skills: [

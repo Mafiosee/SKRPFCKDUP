@@ -41,7 +41,7 @@ const TicketCreateContentByType = {
 	[ReportReason.reportPlayer]: {
 		input: {
 			show: true,
-			placeholder: 'UID / Никнейм нарушителя',
+			placeholder: 'UID нарушителя',
 		},
 		textArea: {
 			show: true,
@@ -54,7 +54,7 @@ const TicketCreateContentByType = {
 	[ReportReason.reportAdmin]: {
 		input: {
 			show: true,
-			placeholder: 'UID / Никнейм администратора',
+			placeholder: 'UID администратора',
 		},
 		textArea: {
 			show: true,

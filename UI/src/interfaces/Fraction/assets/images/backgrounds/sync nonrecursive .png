@@ -12,7 +12,7 @@ var map = {
 	"./hold_whiterun.png": 37636,
 	"./hold_winterhold.png": 4186,
 	"./imperials.png": 19342,
-	"./khajiit.png": 86946,
+	"./khajiit.png": 64565,
 	"./stormcloaks.png": 15316,
 	"./thalmor.png": 38159,
 	"./thieves_guild.png": 68696

@@ -32,7 +32,6 @@ const BlockSetButton: React.FC<Props> = ({ className = '', slot }) => {
         list.push(skin)
       }
     })
-    console.log(list)
     return list.length
   }, [currentSkin, skins])
 

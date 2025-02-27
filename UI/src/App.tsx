@@ -1,12 +1,6 @@
 import NpcDialog from './interfaces/NpcDialog'
-
-require('./utils/api')
 import './index.sass'
-import { KeyNames } from './utils/keyNames'
 import CraftStatus from './interfaces/CraftStatus'
-
-require('./utils/api')
-
 import React, { useEffect } from 'react'
 import { useAppDispatch } from './hooks/redux'
 import { dateTimeActions } from './reducers/datetime'
@@ -80,6 +74,12 @@ import Reconnect from './interfaces/Reconnect'
 import Skins from './interfaces/Skins'
 import SkinsTrade from './interfaces/SkinsTrade'
 import BuyCases from './interfaces/BuyCases'
+import FactionInvite from './interfaces/FactionInvite'
+import Arrest from './interfaces/Arrest'
+
+require('./utils/api')
+
+require('./utils/api')
 
 const App: React.FC = () => {
   const dispatch = useAppDispatch()
@@ -162,6 +162,8 @@ const App: React.FC = () => {
       <Skins />
       <SkinsTrade />
       <BuyCases />
+      <FactionInvite />
+      <Arrest />
 
       <DevConsole />
       <Binder />

@@ -74,6 +74,9 @@ import { reconnectReducer } from './interfaces/Reconnect/reducer'
 import { skinsReducer } from './interfaces/Skins/reducer'
 import { skinsTradeReducer } from './interfaces/SkinsTrade/reducer'
 import { buyCasesReducer } from './interfaces/BuyCases/reducer'
+import factionInvite from './interfaces/FactionInvite'
+import { factionInviteReducer } from './interfaces/FactionInvite/reducer'
+import { arrestReducer } from './interfaces/Arrest/reducer'
 
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -151,6 +154,8 @@ const rootReducer = combineReducers({
   skins: skinsReducer,
   skinsTrade: skinsTradeReducer,
   buyCases: buyCasesReducer,
+  factionInvite: factionInviteReducer,
+  arrest: arrestReducer,
 })
 
 export const setupStore = () => {

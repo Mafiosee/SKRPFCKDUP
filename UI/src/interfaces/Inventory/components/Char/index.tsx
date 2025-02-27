@@ -195,8 +195,11 @@ const Char: React.FC<PropsType> = ({ drag, items, hover }) => {
     () =>
       Object.values(equipment)
         .filter((el) => el !== null)
-        .reduce((acc, value) => {
-          return acc + (value?.armor ? value.armor : 0)
+        .reduce((acc, item) => {
+          if (!item?.armor || !item?.durability) {
+            return acc
+          }
+          return acc + item.armor
         }, 0),
     [equipment],
   )

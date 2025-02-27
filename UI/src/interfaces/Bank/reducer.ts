@@ -1,14 +1,19 @@
 import { createSlice } from '@reduxjs/toolkit'
 import type { PayloadAction } from '@reduxjs/toolkit'
+import { Balance } from '../../shared/Bank/Balance'
+import { Limits } from '../../shared/Bank/Limits'
 
 type BankState = {
   isOpen: boolean
-  balance: number
+  title: string
+  balance: Balance
+  limits: Limits
   house: {
     name: string
     has: boolean
     date: string
     rent: number
+    image: string
   }
   business: {
     name: string
@@ -16,34 +21,53 @@ type BankState = {
     date: string
     rent: number
     balance: number
+    image: string
   }
   faction: {
     name: string
     has: boolean
     balance: number
+    image: string
   }
 }
 
 const initialState: BankState = {
   isOpen: false,
-  balance: 25000,
+  title: '',
+  balance: {
+    cash: 0,
+    bank: 0,
+  },
+  limits: {
+    replenishMin: 0,
+    withdrawMin: 0,
+    houseDaysMax: 0,
+    businessReplenishMin: 0,
+    businessWithdrawMin: 0,
+    businessDaysMax: 0,
+    factionReplenishMin: 0,
+    factionWithdrawMin: 0,
+  },
   house: {
-    name: 'Дом #52',
-    has: true,
-    date: '23.12.2023',
-    rent: 700,
+    name: '',
+    has: false,
+    date: '',
+    rent: 0,
+    image: '',
   },
   business: {
-    name: 'Ферма',
-    has: true,
-    date: '25.12.2023',
-    rent: 2000,
-    balance: 325600,
+    name: '',
+    has: false,
+    date: '',
+    rent: 0,
+    balance: 0,
+    image: '',
   },
   faction: {
-    name: 'Тёмное братство',
-    has: true,
-    balance: 250000,
+    name: '',
+    has: false,
+    balance: 0,
+    image: '',
   },
 }
 
@@ -57,36 +81,22 @@ export const bankSlice = createSlice({
     hide(state) {
       state.isOpen = false
     },
-    setBalance(state, action: PayloadAction<{ value: number }>) {
-      state.balance = action.payload.value
+    setTitle(state, action: PayloadAction<string>) {
+      state.title = action.payload
     },
-    setHouse(
-      state,
-      action: PayloadAction<{
-        name: string
-        has: boolean
-        date: string
-        rent: number
-      }>,
-    ) {
+    setBalance(state, action: PayloadAction<typeof initialState.balance>) {
+      state.balance = action.payload
+    },
+    setLimits(state, action: PayloadAction<typeof initialState.limits>) {
+      state.limits = action.payload
+    },
+    setHouse(state, action: PayloadAction<typeof initialState.house>) {
       state.house = action.payload
     },
-    setBusiness(
-      state,
-      action: PayloadAction<{
-        name: string
-        has: boolean
-        date: string
-        rent: number
-        balance: number
-      }>,
-    ) {
+    setBusiness(state, action: PayloadAction<typeof initialState.business>) {
       state.business = action.payload
     },
-    setFaction(
-      state,
-      action: PayloadAction<{ name: string; has: boolean; balance: number }>,
-    ) {
+    setFaction(state, action: PayloadAction<typeof initialState.faction>) {
       state.faction = action.payload
     },
   },

@@ -42,10 +42,14 @@ export type ItemDto = {
   wearable?: Wearable
   armor?: number
   itemHash?: ItemHashes
+  durability?: number
 }
 
 export type EquipItemDto =
-  | (Pick<ItemDto, 'id' | 'type' | 'size' | 'image' | 'info' | 'wearable'> & {
+  | (Pick<
+      ItemDto,
+      'id' | 'type' | 'size' | 'image' | 'info' | 'wearable' | 'durability'
+    > & {
       armor: number
     })
   | null
@@ -109,7 +113,6 @@ export enum CharSlots {
 export enum ItemActionType {
   DROP = 'drop',
   TAKE = 'take',
-
   SPLIT = 'split',
   EAT = 'eat',
   DRINK = 'drink',
@@ -119,6 +122,8 @@ export enum ItemActionType {
   USE_ROD = 'use_rod',
   USE_SHOVEL = 'use_shovel',
   USE_POTION = 'use_potion',
+  CONFISCATE = 'confiscate',
+  REPAIR = 'repair',
 }
 
 export const ItemActionConfig: Record<ItemActionType, ItemAction> = {
@@ -148,4 +153,9 @@ export const ItemActionConfig: Record<ItemActionType, ItemAction> = {
     type: ItemActionType.USE_SHOVEL,
     name: 'Использовать',
   },
+  [ItemActionType.CONFISCATE]: {
+    type: ItemActionType.CONFISCATE,
+    name: 'Изъять',
+  },
+  [ItemActionType.REPAIR]: { type: ItemActionType.REPAIR, name: 'Починить' },
 }

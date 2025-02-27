@@ -1,0 +1,73 @@
+var map = {
+	"./alchemyShop_1.png": 9155,
+	"./alchemyShop_2.png": 72296,
+	"./alchemyShop_3.png": 12241,
+	"./alchemyShop_4.png": 59774,
+	"./alchemyShop_5.png": 47463,
+	"./alchemyShop_6.png": 78988,
+	"./alchemyShop_7.png": 61877,
+	"./alchemyShop_8.png": 9874,
+	"./armoryShop_1.png": 68698,
+	"./armoryShop_10.png": 79872,
+	"./armoryShop_11.png": 34697,
+	"./armoryShop_2.png": 98865,
+	"./armoryShop_3.png": 1000,
+	"./armoryShop_5.png": 57854,
+	"./armoryShop_6.png": 25205,
+	"./armoryShop_7.png": 56108,
+	"./armoryShop_8.png": 10267,
+	"./armoryShop_9.png": 96050,
+	"./clothesShop_1.png": 21614,
+	"./clothesShop_2.png": 40389,
+	"./clothesShop_3.png": 22876,
+	"./clothesShop_4.png": 6483,
+	"./clothesShop_5.png": 33341,
+	"./tavernShop_1.png": 15358,
+	"./tavernShop_10.png": 60284,
+	"./tavernShop_11.png": 26821,
+	"./tavernShop_12.png": 72814,
+	"./tavernShop_2.png": 82709,
+	"./tavernShop_3.png": 13612,
+	"./tavernShop_4.png": 43779,
+	"./tavernShop_5.png": 26202,
+	"./tavernShop_6.png": 56369,
+	"./tavernShop_7.png": 58504,
+	"./tavernShop_8.png": 40767,
+	"./tavernShop_9.png": 44438,
+	"./tradingShop_1.png": 69397,
+	"./tradingShop_2.png": 49022,
+	"./tradingShop_3.png": 24807,
+	"./tradingShop_4.png": 45192,
+	"./tradingShop_5.png": 93585,
+	"./tradingShop_6.png": 17338,
+	"./tradingShop_7.png": 7171,
+	"./weaponsShop_1.png": 95057,
+	"./weaponsShop_2.png": 18810,
+	"./weaponsShop_3.png": 8643,
+	"./weaponsShop_4.png": 59244,
+	"./weaponsShop_5.png": 70869,
+	"./weaponsShop_6.png": 50494,
+	"./weaponsShop_7.png": 26279,
+	"./weaponsShop_8.png": 82048,
+	"./weaponsShop_9.png": 6249
+};
+
+
+function webpackContext(req) {
+	var id = webpackContextResolve(req);
+	return __webpack_require__(id);
+}
+function webpackContextResolve(req) {
+	if(!__webpack_require__.o(map, req)) {
+		var e = new Error("Cannot find module '" + req + "'");
+		e.code = 'MODULE_NOT_FOUND';
+		throw e;
+	}
+	return map[req];
+}
+webpackContext.keys = function webpackContextKeys() {
+	return Object.keys(map);
+};
+webpackContext.resolve = webpackContextResolve;
+module.exports = webpackContext;
+webpackContext.id = 54810;

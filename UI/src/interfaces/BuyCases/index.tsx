@@ -18,23 +18,40 @@ const BuyCases = () => {
   const { isOpen, caseItem, balance } = useAppSelector(
     (state) => state.buyCases,
   )
-  const [amount, setAmount] = useState(1)
+  const [amount, setAmount] = useState<number | ''>(1)
   useEscClose({
     isOpenInterface: isOpen,
     closeFunc: () => dispatch(buyCasesActions.hide()),
   })
 
   const onChangeBuyAmount = (diff: number) => {
-    const newAmount = amount + diff
-    if (newAmount < 1 || newAmount > 999) {
+    let newAmount = (amount || 0) + diff
+    if (newAmount < 1) {
+      newAmount = 1
+    }
+    if (newAmount > 999) {
       return
     }
     setAmount(newAmount)
   }
 
   const isActiveBuyBtn = useMemo(() => {
-    return caseItem.price * amount <= balance
+    return amount && caseItem.price * amount <= balance
   }, [caseItem, amount, balance])
+
+  const handleChangeAmount = (value) => {
+    if (!value.length) {
+      return setAmount('')
+    }
+    const intValue = parseInt(value)
+    if (isNaN(intValue) || intValue < 0) {
+      return
+    }
+    if (intValue > 999) {
+      return setAmount(999)
+    }
+    setAmount(intValue)
+  }
 
   return !isOpen ? null : (
     <div id="BuyCases">
@@ -66,7 +83,12 @@ const BuyCases = () => {
                 className="btn -minus"
                 onClick={() => onChangeBuyAmount(-1)}
               />
-              <div className="current">{amount}</div>
+              <input
+                type="text"
+                className="current"
+                value={amount}
+                onChange={(event) => handleChangeAmount(event.target.value)}
+              />
               <div className="btn -plus" onClick={() => onChangeBuyAmount(1)} />
             </div>
           </div>
@@ -75,7 +97,7 @@ const BuyCases = () => {
         <div className="sumToPay">
           <div className="title">Итого к оплате:</div>
           <div className="sum">
-            {numberWithSeparator(caseItem.price * amount, ' ')}
+            {numberWithSeparator(caseItem.price * (amount || 0), ' ')}
           </div>
           <div className="balance">
             <div className="title">Баланс:</div>
@@ -90,7 +112,7 @@ const BuyCases = () => {
             }
             const payload: DonateStorePayloads[DonateStoreEvents.CaseBuy] = {
               caseId: caseItem.id,
-              amount,
+              amount: amount || 0,
             }
             callClient(DonateStoreEvents.CaseBuy, payload)
             dispatch(buyCasesActions.hide())

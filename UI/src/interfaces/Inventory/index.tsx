@@ -277,6 +277,10 @@ const Inventory: React.FC = () => {
     }
   }, [FullItems, hoverInfo.itemId])
 
+  useEffect(() => {
+    setHoverInfo((prev) => ({ ...prev, itemId: null }))
+  }, [equipment])
+
   return (
     <CSSTransition
       in={isOpen}
@@ -290,6 +294,8 @@ const Inventory: React.FC = () => {
         <div className="dropZone" onMouseUp={handleDropZoneMouseUp} />
         <Drag info={dragInfo} items={FullItems} />
         <Hover info={hoverInfo} items={FullItems} drag={drag} />
+
+        <Search drag={drag} hover={hover} setActionsList={setActionsList} />
         <div className="window">
           <div className="body">
             <Frame title="Инвентарь" closeEvent={InventoryEvents.Close} />
@@ -357,37 +363,36 @@ const Inventory: React.FC = () => {
                   title="Инвентарь"
                   grid={inventory}
                   gridId={Grids.Inventory}
-                  maxHeight={4}
+                  maxHeight={9}
                   drag={drag}
                   hover={hover}
                   setActionsList={setActionsList}
                 />
-                <GridBlock
-                  icon={BlockIcons.Backpack}
-                  title="Рюкзак"
-                  grid={
-                    hasBackpack && backpack != null ? backpack : noBackpackGrid
-                  }
-                  gridId={Grids.Backpack}
-                  maxHeight={4}
-                  drag={drag}
-                  hover={hover}
-                  noInfo={
-                    hasBackpack && backpack != null
-                      ? undefined
-                      : {
-                          icon: BlockIcons.NoBackpack,
-                          title: 'Рюкзак отсутствует',
-                          helper: 'Его можно приобрести в магазине',
-                        }
-                  }
-                  setActionsList={setActionsList}
-                />
+                {/*<GridBlock*/}
+                {/*  icon={BlockIcons.Backpack}*/}
+                {/*  title="Рюкзак"*/}
+                {/*  grid={*/}
+                {/*    hasBackpack && backpack != null ? backpack : noBackpackGrid*/}
+                {/*  }*/}
+                {/*  gridId={Grids.Backpack}*/}
+                {/*  maxHeight={4}*/}
+                {/*  drag={drag}*/}
+                {/*  hover={hover}*/}
+                {/*  noInfo={*/}
+                {/*    hasBackpack && backpack != null*/}
+                {/*      ? undefined*/}
+                {/*      : {*/}
+                {/*          icon: BlockIcons.NoBackpack,*/}
+                {/*          title: 'Рюкзак отсутствует',*/}
+                {/*          helper: 'Его можно приобрести в магазине',*/}
+                {/*        }*/}
+                {/*  }*/}
+                {/*  setActionsList={setActionsList}*/}
+                {/*/>*/}
               </div>
             </div>
           </div>
         </div>
-        <Search drag={drag} hover={hover} />
         <ActionsListC
           actionsList={actionsList}
           eventName={InventoryEvents.ItemAction}

@@ -261,6 +261,7 @@ const MapTest: React.FC = () => {
                 event.preventDefault()
                 if (blip.id === 'marker') {
                   dispatch(mapActions.setMarker(null))
+                  event.stopPropagation()
                 }
               }}
             >

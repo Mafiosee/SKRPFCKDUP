@@ -13,7 +13,6 @@ import {
   dragInfoDefault,
   HoverInfo,
   hoverInfoDefault,
-  noBackpackGrid,
 } from '../Inventory/types'
 import Drag from '../Inventory/components/Drag'
 import Hover from '../Inventory/components/Hover'
@@ -168,28 +167,9 @@ const Smelter = () => {
                   title="Инвентарь"
                   grid={inventory}
                   gridId={Grids.Inventory}
-                  maxHeight={3}
+                  maxHeight={9}
                   drag={drag}
                   hover={hover}
-                  setActionsList={setActionsList}
-                />
-                <GridBlock
-                  icon={BlockIcons.Backpack}
-                  title="Рюкзак"
-                  grid={hasBackpack && backpack ? backpack : noBackpackGrid}
-                  gridId={Grids.Backpack}
-                  maxHeight={5}
-                  drag={drag}
-                  hover={hover}
-                  noInfo={
-                    hasBackpack && backpack
-                      ? undefined
-                      : {
-                          icon: BlockIcons.NoBackpack,
-                          title: 'Рюкзак отсутствует',
-                          helper: 'Его можно приобрести в магазине',
-                        }
-                  }
                   setActionsList={setActionsList}
                 />
               </div>

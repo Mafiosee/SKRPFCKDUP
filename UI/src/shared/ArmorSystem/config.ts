@@ -87,11 +87,11 @@ export const ArmorConfig: Record<string, Armor> = {
         magic: 0
     },
     [ItemHashes.GLASS_BRACERS]: {
-        physical: 16,
+        physical: 11,
         magic: 0
     },
     [ItemHashes.GLASS_BOOTS]: {
-        physical: 16,
+        physical: 11,
         magic: 0
     },
     [ItemHashes.GLASS_SHIELD]: {
@@ -259,7 +259,7 @@ export const ArmorConfig: Record<string, Armor> = {
         magic: 0
     },
     [ItemHashes.NORDIC_CARVED_HELMET]: {
-        physical: 2,
+        physical: 20,
         magic: 0
     },
     [ItemHashes.NORDIC_CARVED_ARMOR]: {

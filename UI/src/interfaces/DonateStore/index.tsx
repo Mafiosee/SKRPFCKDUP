@@ -1,6 +1,5 @@
 import './styles.sass'
 import React, { useEffect, useState } from 'react'
-import { CSSTransition } from 'react-transition-group'
 import PlayerInfo from './components/PlayerInfo'
 import Balance from './components/Balance'
 import Navbar from './components/Navbar'
@@ -13,6 +12,7 @@ import PageReplenish from './pages/Replenish'
 import PageVips from './pages/Vips'
 import PageServices from './pages/Services'
 import PageWarehouse from './pages/Warehouse'
+import { KeyCodes } from '../../utils/keyCodes'
 
 type Props = {
   isShow: boolean
@@ -29,49 +29,58 @@ const DonateStore: React.FC<Props> = ({ isShow }) => {
     setOpenedCaseId(null)
   }, [dispatch, isShow, tab])
 
-  return (
-    <CSSTransition
-      in={isShow}
-      timeout={0}
-      mountOnEnter
-      unmountOnExit
-      classNames="DonateStore"
-    >
-      <div className="DonateStore">
-        <div className="title">Магазин</div>
-        <div className="content">
-          <div
-            className={`body ${(openedProductId != null || openedCaseId != null) && '-hidden'}`}
-          >
-            <div className="header">
-              <PlayerInfo />
-              <Navbar />
-              <Balance />
-            </div>
-            <div className="pages">
-              <PageStore setOpenedProductId={setOpenedProductId} />
-              <PageCases setOpenedCaseId={setOpenedCaseId} />
-              <PageReplenish />
-              <PageServices />
-              <PageVips />
-              <PageWarehouse />
-            </div>
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.keyCode !== KeyCodes.Tab) {
+        return
+      }
+      event.preventDefault()
+    }
+    if (isShow) {
+      document.addEventListener('keydown', handleKeyDown)
+    } else {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isShow])
+
+  return !isShow ? null : (
+    <div className="DonateStore">
+      <div className="title">Магазин</div>
+      <div className="content">
+        <div
+          className={`body ${(openedProductId != null || openedCaseId != null) && '-hidden'}`}
+        >
+          <div className="header">
+            <PlayerInfo />
+            <Navbar />
+            <Balance />
           </div>
-
-          <OpenedProduct
-            isShow={openedProductId !== null}
-            productId={openedProductId}
-            close={() => setOpenedProductId(null)}
-          />
-
-          <OpenedCase
-            isShow={openedCaseId !== null}
-            caseId={openedCaseId}
-            close={() => setOpenedCaseId(null)}
-          />
+          <div className="pages">
+            <PageStore setOpenedProductId={setOpenedProductId} />
+            <PageCases setOpenedCaseId={setOpenedCaseId} />
+            <PageReplenish />
+            <PageServices />
+            <PageVips />
+            <PageWarehouse />
+          </div>
         </div>
+
+        <OpenedProduct
+          isShow={openedProductId !== null}
+          productId={openedProductId}
+          close={() => setOpenedProductId(null)}
+        />
+
+        <OpenedCase
+          isShow={openedCaseId !== null}
+          caseId={openedCaseId}
+          close={() => setOpenedCaseId(null)}
+        />
       </div>
-    </CSSTransition>
+    </div>
   )
 }
 

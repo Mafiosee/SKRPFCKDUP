@@ -17,12 +17,10 @@ type PropsType = {
   timeUntilEndRent?: string
 }
 
-const NotHasVip = 'inactive'
-
 const VipNames = {
   [VipType.BASIC]: 'started',
-  [VipType.ADVANCED]: 'legendary',
-  [VipType.MAXIMUM]: 'limited',
+  [VipType.ADVANCED]: 'limited',
+  [VipType.MAXIMUM]: 'legendary',
 }
 
 export const BigCard: React.FC<PropsType> = ({
@@ -36,6 +34,7 @@ export const BigCard: React.FC<PropsType> = ({
 }) => {
   const getBackground = () => {
     if (status != null) {
+      console.log(image, status)
       return `url(${image[status]})`
     } else {
       return `url(${name ? image.active : image.inactive})`
@@ -75,7 +74,9 @@ export const BigCard: React.FC<PropsType> = ({
           {name == null && (
             <>
               <div className="title">
-                {status === 'inactive' ? 'Отсутствует' : VipNames[status]}
+                {status === 'inactive'
+                  ? 'Отсутствует'
+                  : VipNames[status ?? VipType.BASIC]}
               </div>
               {status === 'inactive' && (
                 <div className="btn" onClick={onClickBuy}>

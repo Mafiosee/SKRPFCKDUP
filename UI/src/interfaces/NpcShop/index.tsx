@@ -16,8 +16,8 @@ import { KeyCodes } from '../../utils/keyCodes'
 import { useEscClose } from '../../hooks/useEscClose'
 
 const QualityColor = {
-  [Quality.Normal]: '#3F3F3F',
-  [Quality.Unusual]: 'rgb(62, 127, 69)',
+  [Quality.Unusual]: '#3F3F3F',
+  [Quality.Normal]: 'rgb(62, 127, 69)',
   [Quality.Rare]: 'rgb(71, 106, 173)',
   [Quality.Epic]: 'rgb(110, 51, 144)',
   [Quality.Legendary]: 'rgb(173, 157, 71)',

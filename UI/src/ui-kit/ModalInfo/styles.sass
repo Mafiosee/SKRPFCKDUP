@@ -1,0 +1,11 @@
+// Imports
+import ___CSS_LOADER_API_SOURCEMAP_IMPORT___ from "../../../node_modules/css-loader/dist/runtime/sourceMaps.js";
+import ___CSS_LOADER_API_IMPORT___ from "../../../node_modules/css-loader/dist/runtime/api.js";
+import ___CSS_LOADER_GET_URL_IMPORT___ from "../../../node_modules/css-loader/dist/runtime/getUrl.js";
+var ___CSS_LOADER_URL_IMPORT_0___ = new URL("./assets/images/icon.svg", import.meta.url);
+var ___CSS_LOADER_EXPORT___ = ___CSS_LOADER_API_IMPORT___(___CSS_LOADER_API_SOURCEMAP_IMPORT___);
+var ___CSS_LOADER_URL_REPLACEMENT_0___ = ___CSS_LOADER_GET_URL_IMPORT___(___CSS_LOADER_URL_IMPORT_0___);
+// Module
+___CSS_LOADER_EXPORT___.push([module.id, `.UI-Kit_ModalInfo{width:100%;font-family:Inter,sans-serif;font-weight:500;font-size:1.29626vh;line-height:1.8518vh;color:#fff;text-transform:none;display:flex;flex-direction:row;justify-content:flex-start;align-items:center;gap:.55554vh;opacity:.6}.UI-Kit_ModalInfo::before{content:"";width:1.8518vh;height:1.8518vh;flex-shrink:0;background-image:url(${___CSS_LOADER_URL_REPLACEMENT_0___});background-size:100% 100%}`, "",{"version":3,"sources":["webpack://./src/ui-kit/ModalInfo/styles.sass","webpack://./src/styles/mixins/_flex-row-start-center.sass"],"names":[],"mappings":"AAGA,kBACE,UAAA,CACA,4BAAA,CACA,eAAA,CACA,mBAAA,CACA,oBAAA,CACA,UAAA,CACA,mBAAA,CCTA,YAAA,CACA,kBAAA,CACA,0BAAA,CACA,kBAAA,CDQA,YAAA,CACA,UAAA,CAEA,0BACE,UAAA,CACA,cAAA,CACA,eAAA,CACA,aAAA,CACA,wDAAA,CACA,yBAAA","sourcesContent":["@import \"src/styles/variables\"\r\n@import \"src/styles/mixins\"\r\n\r\n.UI-Kit_ModalInfo\r\n  width: 100%\r\n  font-family: Inter, sans-serif\r\n  font-weight: 500\r\n  font-size: 14 *$hPoint\r\n  line-height: 20 *$hPoint\r\n  color: #fff\r\n  text-transform: none\r\n  +flex-row-start-center()\r\n  gap: 6 *$hPoint\r\n  opacity: .6\r\n\r\n  &::before\r\n    content: ''\r\n    width: 20 *$hPoint\r\n    height: 20 *$hPoint\r\n    flex-shrink: 0\r\n    background-image: url(./assets/images/icon.svg)\r\n    background-size: 100% 100%\r\n","=flex-row-start-center()\r\n  display: flex\r\n  flex-direction: row\r\n  justify-content: flex-start\r\n  align-items: center\r\n"],"sourceRoot":""}]);
+// Exports
+export default ___CSS_LOADER_EXPORT___;

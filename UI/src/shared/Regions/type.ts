@@ -7,4 +7,5 @@ export enum Region {
 	HighRock,
 	Elsweyr,
 	BlackMarsh,
+	Valenwood,
 }

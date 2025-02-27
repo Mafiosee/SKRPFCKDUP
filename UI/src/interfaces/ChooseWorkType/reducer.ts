@@ -1,8 +1,9 @@
 import type { PayloadAction } from '@reduxjs/toolkit'
 import { createSlice } from '@reduxjs/toolkit'
-import { Work, WorkStatus } from '../../shared/Work/Work'
+import { mockState } from './mockState'
+import { Work } from '../../shared/Work/Work'
 
-type ChooseWorkTypeState = {
+export type ChooseWorkTypeState = {
   isOpen: boolean
   title: string
   image: string
@@ -15,25 +16,12 @@ const initialState: ChooseWorkTypeState = {
   title: '',
   image: '',
   levelHelper: '',
-  works: [
-    // {
-    //   id: 0,
-    //   level: 1,
-    //   name: "Дровяной атлет",
-    //   description: "sdsd",
-    //   status: WorkStatus.Available,
-    //   progress: {
-    //     max: 20,
-    //     current: 10,
-    //   },
-    //   icon: "bag_cow",
-    //   image: "forest_1",
-    // }
-  ],
+  works: [],
 }
 
 export const chooseWorkTypeSlice = createSlice({
   name: 'chooseWorkType',
+  // initialState: mockState,
   initialState,
   reducers: {
     show(state) {

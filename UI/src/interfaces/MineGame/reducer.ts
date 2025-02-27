@@ -1,24 +1,24 @@
 import { createSlice } from '@reduxjs/toolkit'
 
 type MineGameState = {
-	isOpen: boolean
+  isOpen: boolean
 }
 
 const initialState: MineGameState = {
-	isOpen: false,
+  isOpen: false,
 }
 
 export const mineGameSlice = createSlice({
-	name: 'mineGame',
-	initialState,
-	reducers: {
-		show(state) {
-			state.isOpen = true
-		},
-		hide(state) {
-			state.isOpen = false
-		},
-	},
+  name: 'mineGame',
+  initialState,
+  reducers: {
+    show(state) {
+      state.isOpen = true
+    },
+    hide(state) {
+      state.isOpen = false
+    },
+  },
 })
 
 export const mineGameReducer = mineGameSlice.reducer

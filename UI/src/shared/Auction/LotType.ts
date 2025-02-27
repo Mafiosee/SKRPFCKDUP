@@ -1,5 +1,5 @@
 export enum LotType {
-	Business = 'Business',
-	House = 'House',
-	FamilyHouse = 'FamilyHouse',
+  Business = 'Business',
+  House = 'House',
+  FamilyHouse = 'FamilyHouse',
 }

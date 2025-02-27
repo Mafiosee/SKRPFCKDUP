@@ -98,11 +98,15 @@ export class WeaponItemConfig extends ItemConfig {
 			name: infoOptions.name,
 			parameters: [
 				{ title: 'Тип Оружия', value: infoOptions.type },
-				{ title: 'Состояние', value: `${100}%` },
 				{ title: 'Вес', value: `${infoOptions.weight}кг.` },
 			],
 			description: infoOptions.description,
-			actions: [ItemActionConfig[ItemActionType.PUT_ON], ItemActionConfig[ItemActionType.SPLIT], ItemActionConfig[ItemActionType.DROP]],
+			actions: [
+				ItemActionConfig[ItemActionType.PUT_ON],
+				ItemActionConfig[ItemActionType.REPAIR],
+				ItemActionConfig[ItemActionType.SPLIT],
+				ItemActionConfig[ItemActionType.DROP],
+			],
 		}
 	}
 }

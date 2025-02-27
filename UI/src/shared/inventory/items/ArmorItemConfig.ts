@@ -80,11 +80,15 @@ export class ArmorItemConfig extends ItemConfig {
 			name: infoOption.name,
 			parameters: [
 				{ title: 'Броня', value: infoOption.type },
-				{ title: 'Состояние', value: `${100}%` },
 				{ title: 'Вес', value: `${infoOption.weight}кг.` },
 			],
 			description: infoOption.description,
-			actions: [ItemActionConfig[ItemActionType.PUT_ON], ItemActionConfig[ItemActionType.SPLIT], ItemActionConfig[ItemActionType.DROP]],
+			actions: [
+				ItemActionConfig[ItemActionType.PUT_ON],
+				ItemActionConfig[ItemActionType.REPAIR],
+				ItemActionConfig[ItemActionType.SPLIT],
+				ItemActionConfig[ItemActionType.DROP],
+			],
 		}
 	}
 }

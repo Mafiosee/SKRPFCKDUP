@@ -1,92 +1,81 @@
 import './styles.sass'
-import React from 'react'
+import React, { useMemo } from 'react'
 import { numberWithSeparator } from '../../../../utils/numberWithSeparator'
+import { Icon, IconComponent } from '../../../../ui-kit/Icons'
 
-type RealtyType = 'House' | 'Business' | 'Faction'
+const IconCoinSeptimComponent = IconComponent[Icon.CoinSeptim]
 
-type HBInfoType = {
-	name: string
-	has: boolean
-	date: string
-	rent: number
+type Props = {
+  has: boolean
+  empty: {
+    imageUrl: string
+    name: string
+    helper?: string
+  }
+  name: string
+  date?: string
+  balance?: number
+  imageUrl: string
+  onClick: () => void
 }
 
-type FInfoType = {
-	name: string
-	has: boolean
-	balance: number
-}
+const Card: React.FC<Props> = ({
+  has,
+  empty,
+  name,
+  date,
+  balance,
+  imageUrl,
+  onClick,
+}) => {
+  const currentImageUrl = useMemo(() => {
+    if (!has) {
+      return empty.imageUrl
+    }
+    return imageUrl
+  }, [has])
 
-type PropsType = {
-	state: boolean
-	setState: (state: boolean) => void
-	realty: RealtyType
-	info: HBInfoType | FInfoType
-}
-
-enum RealtyCards {
-	House,
-	Business,
-	Faction,
-}
-
-enum RealtyBackgrounds {
-	House = require('../../assets/images/cards/house-bg.png'),
-	Business = require('../../assets/images/cards/business-bg.png'),
-	Faction = require('../../assets/images/cards/faction-bg.png'),
-}
-
-const RealtyNames = {
-	[RealtyCards.House]: 'Дом',
-	[RealtyCards.Business]: 'Бизнес',
-	[RealtyCards.Faction]: 'Фракция',
-}
-
-const Card: React.FC<PropsType> = ({ state, setState, realty, info }) => {
-	const onClickCard = () => {
-		if (!info.has) {return}
-		setState(true)
-	}
-
-	const backgroundImage = `url(${RealtyBackgrounds[realty]})`
-
-	return (
-		<div className={`_Card ${info.has ? '-has' : '-not'}`} onClick={onClickCard}>
-			<div className='frame' />
-			<div
-				className='image'
-				style={{ backgroundImage, filter: `grayscale(${!info.has && '100%'})` }}
-			/>
-			<div className={`shadow ${info.has && '-has'}`} />
-			{state && <div className={'-selected'}></div>}
-			{info.has && <div className='hovered-shadow' />}
-			<div className='content'>
-				<div className='info'>
-					<div className='name'>{RealtyNames[RealtyCards[realty]]}</div>
-					<div className='line' />
-					{'rent' in info && info.has && (
-						<>
-							<div className='text'>
-								<span>АРЕНДА ДО: </span>
-								<span>{info.date}</span>
-							</div>
-						</>
-					)}
-					{'balance' in info && info.has && (
-						<>
-							<div className='text'>
-								<span>Баланс счета:</span>
-								<div className='icon' />
-								<span>{numberWithSeparator(info.balance, '.')}</span>
-							</div>
-						</>
-					)}
-
-					{!info.has && <div className={'lock'} />}
-				</div>
-			</div>
-		</div>
-	)
+  return (
+    <div
+      className={`Card ${!has && '-locked'}`}
+      onClick={has ? onClick : () => {}}
+    >
+      <div
+        className="image"
+        style={{ backgroundImage: `url(${currentImageUrl})` }}
+      />
+      <div className="content">
+        {has ? (
+          <>
+            <div className="name">{name}</div>
+            {date != null && (
+              <div className="info">
+                <div className="title">Аренда до:</div>
+                <div className="value">{date}</div>
+              </div>
+            )}
+            {balance != null && (
+              <div className="info">
+                <div className="title">Баланс хранилища:</div>
+                <div className="coin">
+                  <IconCoinSeptimComponent />
+                </div>
+                <div className="value">{numberWithSeparator(balance, '.')}</div>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="name">{empty.name}</div>
+            <div className="info">
+              <div className="title">{empty?.helper ?? 'Отсутствует'}</div>
+            </div>
+            <div className="lock" />
+          </>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default Card

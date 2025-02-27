@@ -234,6 +234,7 @@ export const escMenuSlice = createSlice({
         state.showSettingsConfirmWindow = true
       } else {
         state.isOpen = false
+        state.requiredNavId = null
       }
     },
 
