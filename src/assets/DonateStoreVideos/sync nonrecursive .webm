@@ -1,0 +1,34 @@
+var map = {
+	"./1ndarmor.webm": 37522,
+	"./1ngarmor.webm": 30525,
+	"./1silver.webm": 77154,
+	"./1swallow.webm": 16780,
+	"./Infantryman.webm": 93311,
+	"./contractor-armor.webm": 29807,
+	"./dragonlordarmor.webm": 19143,
+	"./eclipse.webm": 33473,
+	"./moragtonggrand.webm": 22548,
+	"./nightningale.webm": 54826,
+	"./silver-dragon.webm": 27843,
+	"./tarnished.webm": 40128
+};
+
+
+function webpackContext(req) {
+	var id = webpackContextResolve(req);
+	return __webpack_require__(id);
+}
+function webpackContextResolve(req) {
+	if(!__webpack_require__.o(map, req)) {
+		var e = new Error("Cannot find module '" + req + "'");
+		e.code = 'MODULE_NOT_FOUND';
+		throw e;
+	}
+	return map[req];
+}
+webpackContext.keys = function webpackContextKeys() {
+	return Object.keys(map);
+};
+webpackContext.resolve = webpackContextResolve;
+module.exports = webpackContext;
+webpackContext.id = 5944;

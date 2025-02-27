@@ -1,0 +1,20 @@
+export enum FactionHash {
+    Imperials = 'imperials',
+    Dark_Brotherhood = 'dark_brotherhood',
+    Thieves_Guild = 'thieves_guild',
+    Khajiit = 'khajiit',
+    Bards_College = 'bards_college',
+    College_of_Winterhold = 'college_of_winterhold',
+    Thalmor = 'thalmor',
+    Stormcloaks = 'stormcloaks',
+    Hold_Eastmarch = 'hold_eastmarch',
+    Hold_Falkreath = 'hold_falkreath',
+    Hold_Haafingar = 'hold_haafingar',
+    Hold_Hjaalmarch = 'hold_hjaalmarch',
+    Hold_Pale = 'hold_pale',
+    Hold_Reach = 'hold_reach',
+    Hold_Rift = 'hold_rift',
+    Hold_Whiterun = 'hold_whiterun',
+    Hold_Winterhold = 'hold_winterhold',
+}
+

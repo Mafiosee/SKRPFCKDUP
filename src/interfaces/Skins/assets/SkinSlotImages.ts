@@ -1,0 +1,25 @@
+import { SkinSlot } from '../../../shared/Skins/SkinSlot'
+
+export const SkinSlotImageUrl: Record<SkinSlot, string> = {
+  [SkinSlot.Dagger]: require('./images/skinSlots/dagger.png'),
+  [SkinSlot.Sword]: require('./images/skinSlots/sword.png'),
+  [SkinSlot.GreatSword]: require('./images/skinSlots/greatSword.png'),
+  [SkinSlot.Mace]: require('./images/skinSlots/mace.png'),
+  [SkinSlot.WarAxe]: require('./images/skinSlots/warAxe.png'),
+  [SkinSlot.BattleAxe]: require('./images/skinSlots/battleAxe.png'),
+  [SkinSlot.WarHammer]: require('./images/skinSlots/warHammer.png'),
+  [SkinSlot.Bow]: require('./images/skinSlots/bow.png'),
+  [SkinSlot.Headdress]: require('./images/skinSlots/headdress.png'),
+  [SkinSlot.Outerwear]: require('./images/skinSlots/outerwear.png'),
+  [SkinSlot.Bracers]: require('./images/skinSlots/bracers.png'),
+  [SkinSlot.Shoes]: require('./images/skinSlots/shoes.png'),
+  [SkinSlot.Earrings]: require('./images/skinSlots/earrings.png'),
+  [SkinSlot.Amulet]: require('./images/skinSlots/amulet.png'),
+  [SkinSlot.Scarf]: require('./images/skinSlots/scarf.png'),
+  [SkinSlot.Cloak]: require('./images/skinSlots/cloak.png'),
+  [SkinSlot.Ring]: require('./images/skinSlots/ring.png'),
+  [SkinSlot.Belt]: require('./images/skinSlots/belt.png'),
+  [SkinSlot.Bag]: require('./images/skinSlots/bag.png'),
+  [SkinSlot.Mask]: require('./images/skinSlots/mask.png'),
+  [SkinSlot.Glasses]: require('./images/skinSlots/glasses.png'),
+}

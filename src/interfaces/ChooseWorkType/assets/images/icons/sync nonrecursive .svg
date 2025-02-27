@@ -1,0 +1,28 @@
+var map = {
+	"./bag_cow.svg": 62902,
+	"./honey.svg": 27865,
+	"./potato.svg": 69261,
+	"./watering_can.svg": 40476,
+	"./wheat.svg": 37405,
+	"./wood.svg": 18603
+};
+
+
+function webpackContext(req) {
+	var id = webpackContextResolve(req);
+	return __webpack_require__(id);
+}
+function webpackContextResolve(req) {
+	if(!__webpack_require__.o(map, req)) {
+		var e = new Error("Cannot find module '" + req + "'");
+		e.code = 'MODULE_NOT_FOUND';
+		throw e;
+	}
+	return map[req];
+}
+webpackContext.keys = function webpackContextKeys() {
+	return Object.keys(map);
+};
+webpackContext.resolve = webpackContextResolve;
+module.exports = webpackContext;
+webpackContext.id = 67636;

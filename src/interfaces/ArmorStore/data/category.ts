@@ -1,0 +1,25 @@
+import { CharSlots, ItemType } from '../../../shared/inventory/itemType'
+
+export const CategoryNames: Record<CharSlots | ItemType, string> = {
+  [CharSlots.Backpack]: 'Рюкзаки',
+  [CharSlots.Headdress]: 'Шлема',
+  [CharSlots.Amulet]: 'Амулеты',
+  [CharSlots.Outerwear]: 'Нагрудники',
+  [CharSlots.Shoes]: 'Обувь',
+  [CharSlots.Bracers]: 'Перчатки',
+  [CharSlots.Ring]: 'Кольца',
+  [CharSlots.FirstHand]: 'Оружие',
+  [CharSlots.SecondHand]: 'Оружие',
+  [ItemType.Weapon]: 'Оружие',
+  [ItemType.Armor]: 'Броня',
+  [ItemType.Backpack]: 'Рюкзак',
+  [ItemType.Potions]: 'Зелья',
+  [ItemType.Manuscripts]: 'Манускрипты',
+  [ItemType.Food]: 'Еда',
+  [ItemType.Drinks]: 'Напитки',
+  [ItemType.Ingredients]: 'Ингридиенты',
+  [ItemType.Resources]: 'Ресурсы',
+  [ItemType.Other]: 'Прочее',
+  [ItemType.Accessories]: 'Аксессуары',
+  [ItemType.Clothes]: 'Одежда',
+}

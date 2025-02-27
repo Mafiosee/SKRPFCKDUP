@@ -1,0 +1,39 @@
+var map = {
+	"./bards_college.png": 68218,
+	"./college_of_winterhold.png": 50096,
+	"./dark_brotherhood.png": 64275,
+	"./hold_eastmarch.png": 43656,
+	"./hold_falkreath.png": 30224,
+	"./hold_haafinga.png": 93159,
+	"./hold_hjaalmarch.png": 39015,
+	"./hold_pale.png": 91486,
+	"./hold_reach.png": 10409,
+	"./hold_rift.png": 7779,
+	"./hold_whiterun.png": 37636,
+	"./hold_winterhold.png": 4186,
+	"./imperials.png": 19342,
+	"./khajiit.png": 86946,
+	"./stormcloaks.png": 15316,
+	"./thalmor.png": 38159,
+	"./thieves_guild.png": 68696
+};
+
+
+function webpackContext(req) {
+	var id = webpackContextResolve(req);
+	return __webpack_require__(id);
+}
+function webpackContextResolve(req) {
+	if(!__webpack_require__.o(map, req)) {
+		var e = new Error("Cannot find module '" + req + "'");
+		e.code = 'MODULE_NOT_FOUND';
+		throw e;
+	}
+	return map[req];
+}
+webpackContext.keys = function webpackContextKeys() {
+	return Object.keys(map);
+};
+webpackContext.resolve = webpackContextResolve;
+module.exports = webpackContext;
+webpackContext.id = 54468;

@@ -1,0 +1,34 @@
+var map = {
+	"./apple.png": 51743,
+	"./farm_0.png": 18438,
+	"./farm_1.png": 87183,
+	"./farm_2.png": 64724,
+	"./farm_3.png": 85853,
+	"./forest_0.png": 54285,
+	"./forest_1.png": 91044,
+	"./forest_2.png": 76319,
+	"./forest_3.png": 22518,
+	"./honey_0.png": 2303,
+	"./honey_1.png": 48502,
+	"./honey_2.png": 80269
+};
+
+
+function webpackContext(req) {
+	var id = webpackContextResolve(req);
+	return __webpack_require__(id);
+}
+function webpackContextResolve(req) {
+	if(!__webpack_require__.o(map, req)) {
+		var e = new Error("Cannot find module '" + req + "'");
+		e.code = 'MODULE_NOT_FOUND';
+		throw e;
+	}
+	return map[req];
+}
+webpackContext.keys = function webpackContextKeys() {
+	return Object.keys(map);
+};
+webpackContext.resolve = webpackContextResolve;
+module.exports = webpackContext;
+webpackContext.id = 97851;

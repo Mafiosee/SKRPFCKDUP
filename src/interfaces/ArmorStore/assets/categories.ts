@@ -1,0 +1,25 @@
+import { CharSlots, ItemType } from '../../../shared/inventory/itemType'
+
+export const CategoryIcons: Record<CharSlots | ItemType, string> = {
+  [CharSlots.Backpack]: require('./images/categories/backpack.svg'),
+  [CharSlots.Headdress]: require('./images/categories/headdress.svg'),
+  [CharSlots.Amulet]: require('./images/categories/amulet.svg'),
+  [CharSlots.Outerwear]: require('./images/categories/outerwear.svg'),
+  [CharSlots.Shoes]: require('./images/categories/shoes.svg'),
+  [CharSlots.Bracers]: require('./images/categories/bracers.svg'),
+  [CharSlots.Ring]: require('./images/categories/ring.svg'),
+  [CharSlots.FirstHand]: require('./images/categories/firstHand.svg'),
+  [CharSlots.SecondHand]: require('./images/categories/secondHand.svg'),
+  [ItemType.Weapon]: require('./images/categories/itemType-weapon.svg'),
+  [ItemType.Armor]: require('./images/categories/itemType-armor.svg'),
+  [ItemType.Backpack]: require('./images/categories/itemType-backpack.svg'),
+  [ItemType.Potions]: require('./images/categories/itemType-potions.svg'),
+  [ItemType.Manuscripts]: require('./images/categories/itemType-manuscripts.svg'),
+  [ItemType.Food]: require('./images/categories/itemType-food.svg'),
+  [ItemType.Drinks]: require('./images/categories/itemType-drink.svg'),
+  [ItemType.Ingredients]: require('./images/categories/itemType-ingredients.svg'),
+  [ItemType.Resources]: require('./images/categories/itemType-resources.svg'),
+  [ItemType.Other]: require('./images/categories/itemType-other.svg'),
+  [ItemType.Accessories]: require('./images/categories/itemType-accessories.svg'),
+  [ItemType.Clothes]: require('./images/categories/itemType-clothes.svg'),
+}

@@ -1,0 +1,51 @@
+export enum SkinSlot {
+  Dagger = 'Dagger',
+  Sword = 'Sword',
+  GreatSword = 'GreatSword',
+  Mace = 'Mace',
+  WarAxe = 'WarAxe',
+  BattleAxe = 'BattleAxe',
+  WarHammer = 'WarHammer',
+  Bow = 'Bow',
+  Headdress = 'Headdress',
+  Outerwear = 'Outerwear',
+  Bracers = 'Bracers',
+  Shoes = 'Shoes',
+  Earrings = 'Earrings',
+  Amulet = 'Amulet',
+  Scarf = 'Scarf',
+  Cloak = 'Cloak',
+  Ring = 'Ring',
+  Belt = 'Belt',
+  Bag = 'Bag',
+  Mask = 'Mask',
+  Glasses = 'Glasses',
+}
+
+type SkinSlotConfigItem = {
+  name: string
+}
+
+export const SkinSlotConfig: Record<SkinSlot, SkinSlotConfigItem> = {
+  [SkinSlot.Dagger]: { name: 'Кинжал' },
+  [SkinSlot.Sword]: { name: 'Меч' },
+  [SkinSlot.GreatSword]: { name: 'Двуручный меч' },
+  [SkinSlot.Mace]: { name: 'Булава' },
+  [SkinSlot.WarAxe]: { name: 'Боевой топор' },
+  [SkinSlot.BattleAxe]: { name: 'Секира' },
+  [SkinSlot.WarHammer]: { name: 'Боевой молот' },
+  [SkinSlot.Bow]: { name: 'Лук' },
+  [SkinSlot.Headdress]: { name: 'Шлем' },
+  [SkinSlot.Outerwear]: { name: 'Нагрудник' },
+  [SkinSlot.Bracers]: { name: 'Наручи' },
+  [SkinSlot.Shoes]: { name: 'Сапоги' },
+  [SkinSlot.Earrings]: { name: 'Серьги' },
+  [SkinSlot.Amulet]: { name: 'Амулет' },
+  [SkinSlot.Scarf]: { name: 'Шарф' },
+  [SkinSlot.Cloak]: { name: 'Плащ' },
+  [SkinSlot.Ring]: { name: 'Кольцо' },
+  [SkinSlot.Belt]: { name: 'Ремень' },
+  [SkinSlot.Bag]: { name: 'Сумка' },
+  [SkinSlot.Mask]: { name: 'Маска' },
+  [SkinSlot.Glasses]: { name: 'Очки' },
+}
