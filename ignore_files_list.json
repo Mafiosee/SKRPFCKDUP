@@ -1,10 +1,19 @@
 {
-  "files": [
-    "SkyrimRP/profiles/SkyrimRP/skyrimprefs.ini",
-    "SkyrimRP/mods/AllMods/SKSE/Plugins/ActorLimitFix.log",
-    "mods/AllMods/SKSE/Plugins/HelloWorld.dll",
-    "SkyrimRP/skse64_1_6_640.dll",
-    "SkyrimRP/overwrite/SKSE/Plugins/SkyrimPlatform.ini"
-  ],
-  "folders": []
+	"files": [
+		"./profiles/SkyrimRP/skyrimprefs.ini",
+		"./ModOrganizer.ini",
+		"./overwrite/Laintar Dale.ini",
+    "./mods/SkyrimRP_Mods_2/SKSE/Plugins/HelloWorld.dll",
+    "./skse64_1_6_640.dll"
+	],
+	"folders": [
+		"./webcache",
+	],
+	"folderTemplates": [
+		"__pycache__"
+	],
+	"filenameExtension": [
+		".log",
+		".logs",
+	]
 }
