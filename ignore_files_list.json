@@ -3,8 +3,8 @@
 		"./profiles/SkyrimRP/skyrimprefs.ini",
 		"./ModOrganizer.ini",
 		"./overwrite/Laintar Dale.ini",
-    "./mods/SkyrimRP_Mods_2/SKSE/Plugins/HelloWorld.dll",
-    "./skse64_1_6_640.dll"
+    		"./mods/SkyrimRP_Mods_2/SKSE/Plugins/HelloWorld.dll",
+    		"./skse64_1_6_640.dll"
 	],
 	"folders": [
 		"./webcache",
