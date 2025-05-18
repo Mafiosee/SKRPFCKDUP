@@ -76,6 +76,8 @@ import SkinsTrade from './interfaces/SkinsTrade'
 import BuyCases from './interfaces/BuyCases'
 import FactionInvite from './interfaces/FactionInvite'
 import Arrest from './interfaces/Arrest'
+import FactionWarehouse from './interfaces/FactionWarehouse'
+import { RPC } from './utils/RPC'
 
 require('./utils/api')
 
@@ -87,6 +89,7 @@ const App: React.FC = () => {
   useEffect(() => {
     setInterval(() => {
       dispatch(dateTimeActions.incrementTime())
+      RPC.checkPendingRequests()
     }, 1000)
   }, [dispatch])
 
@@ -164,6 +167,7 @@ const App: React.FC = () => {
       <BuyCases />
       <FactionInvite />
       <Arrest />
+      <FactionWarehouse />
 
       <DevConsole />
       <Binder />

@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react'
 import './styles.sass'
-import { UIKitTabsSize, UIKitTabsSizeClass } from './data/Size'
 import { UIKitTabsTab, UIKitTabsTabId } from './types/Tab'
+import { UIKitSize, UIKitSizeClass } from '../types/Size'
 
 type Props = {
-  size?: UIKitTabsSize
+  className?: string
+  size?: UIKitSize
   tabs: UIKitTabsTab[]
   activeTabId: UIKitTabsTabId
   setActiveTabId: (tabId: UIKitTabsTabId) => void
@@ -12,7 +13,8 @@ type Props = {
 }
 
 const UIKitTabs: React.FC<Props> = ({
-  size = UIKitTabsSize.Large,
+  className,
+  size = UIKitSize.Large,
   tabs,
   activeTabId,
   setActiveTabId,
@@ -20,8 +22,12 @@ const UIKitTabs: React.FC<Props> = ({
 }) => {
   const classes = useMemo(
     () =>
-      [UIKitTabsSizeClass[size], allSidesBorder && '-allSidesBorder'].join(' '),
-    [size],
+      [
+        className,
+        UIKitSizeClass[size],
+        allSidesBorder && '-allSidesBorder',
+      ].join(' '),
+    [className, size, allSidesBorder],
   )
 
   const renderedTabs = useMemo(

@@ -12,6 +12,7 @@ import { AcceptCancelNotification } from './components/AcceptCancelNotification'
 import { Chat } from './components/Chat'
 import { Keys } from './components/Keys'
 import { Minimap } from './components/Minimap'
+import { Jail } from './components/Jail'
 
 const Hud = () => {
   const dispatch = useAppDispatch()
@@ -46,6 +47,7 @@ const Hud = () => {
       <AcceptCancelNotification />
       <Chat />
       <Keys />
+      <Jail />
       <Minimap />
     </div>
   ) : null

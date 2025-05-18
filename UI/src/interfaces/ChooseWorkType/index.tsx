@@ -3,7 +3,7 @@ import './styles.sass'
 import { useAppSelector } from '../../hooks/redux'
 import { useEscClose } from '../../hooks/useEscClose'
 import { callClient } from '../../utils/api'
-import { BackgroundImages } from './assets/BackgroundImages'
+import { BackgroundImages, CharacterImages } from './assets/BackgroundImages'
 import {
   ChooseWorkTypeEvents,
   ChooseWorkTypePayload,
@@ -188,7 +188,15 @@ const ChooseWorkType = () => {
             style={{
               backgroundImage: `url(${BackgroundImages[`${image}.png`]})`,
             }}
-          />
+          >
+            <div className="color" />
+            <div
+              className="character"
+              style={{
+                backgroundImage: `url(${CharacterImages[`${image}.png`]})`,
+              }}
+            />
+          </div>
           <div className="content">
             <div className="info">
               <div className="level">

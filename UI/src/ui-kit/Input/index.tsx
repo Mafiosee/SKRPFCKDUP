@@ -1,14 +1,15 @@
 import React, { useMemo, useState } from 'react'
 import './styles.sass'
-import { UIKitInputSize, UIKitInputSizeClass } from './data/Size'
 import { Icon, IconComponent } from '../Icons'
+import { UIKitSize, UIKitSizeClass } from '../types/Size'
 
 type Props = {
   width?: string
   className?: string
-  size?: UIKitInputSize
+  size?: UIKitSize
   disabled?: boolean
   title?: string
+  icon?: Icon
   placeholder: string
   value: string
   onChange: (value: string) => void
@@ -22,9 +23,10 @@ type Props = {
 const UIKitInput: React.FC<Props> = ({
   width,
   className,
-  size = UIKitInputSize.Large,
+  size = UIKitSize.Large,
   disabled = false,
   title,
+  icon,
   placeholder,
   value,
   onChange,
@@ -34,15 +36,18 @@ const UIKitInput: React.FC<Props> = ({
   const [focused, setFocused] = useState(false)
 
   const classes = useMemo(
-    () => [className, UIKitInputSizeClass[size]].join(' '),
+    () => [className, UIKitSizeClass[size]].join(' '),
     [className, size],
   )
 
   const inputClasses = useMemo(
     () =>
-      [disabled && 'disabled', focused && 'focused', warning && 'warning'].join(
-        ' ',
-      ),
+      [
+        disabled && 'disabled',
+        focused && 'focused',
+        warning && 'warning',
+        value.length && 'filled',
+      ].join(' '),
     [disabled, focused, value],
   )
 
@@ -77,10 +82,23 @@ const UIKitInput: React.FC<Props> = ({
     )
   }, [helper?.icon])
 
+  const renderedIcon = useMemo(() => {
+    if (icon == null) {
+      return null
+    }
+    const Icon = IconComponent[icon]
+    return (
+      <div className="icon">
+        <Icon />
+      </div>
+    )
+  }, [icon])
+
   return (
     <div className={`UI-Kit_Input ${classes}`} style={{ width }}>
       {title != null && <div className="title">{title}</div>}
       <div className={`input ${inputClasses}`}>
+        {renderedIcon}
         <input
           type="text"
           placeholder={placeholder}

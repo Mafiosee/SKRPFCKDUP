@@ -6,7 +6,7 @@ import { CreateCharacterEvents } from '../../../../shared/characterEditor/events
 const BackButton = () => {
 	return (
 		<div className='_BackButton' onClick={() => callClient(CreateCharacterEvents.Back)}>
-			Покинуть игру
+			Вернуться назад
 		</div>
 	)
 }

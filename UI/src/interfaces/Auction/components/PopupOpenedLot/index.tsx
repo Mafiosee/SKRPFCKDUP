@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import './styles.sass'
 import { useAppDispatch, useAppSelector } from '../../../../hooks/redux'
 import { numberWithSeparator } from '../../../../utils/numberWithSeparator'
@@ -18,6 +18,7 @@ const PopupOpenedLot: React.FC = () => {
     (state) => state.auction,
   )
   const [sum, setSum] = useState<number | ''>('')
+  const lastBetRef = useRef<HTMLDivElement>(null)
 
   const lot = useMemo(
     () => lots.find((lot) => lot.id === openedLotId),
@@ -44,6 +45,13 @@ const PopupOpenedLot: React.FC = () => {
     }
   }, [lot])
 
+  useEffect(() => {
+    if (!lastBetRef.current) {
+      return
+    }
+    lastBetRef.current.scrollIntoView({ behavior: 'smooth' })
+  }, [lastBetRef.current])
+
   const handleChangeSum = (value: string) => {
     value = value.replace(/\./g, '')
     if (!value.length) {
@@ -64,7 +72,7 @@ const PopupOpenedLot: React.FC = () => {
       return []
     }
     return lot.bets.map((bet, index) => (
-      <div key={index} className="bet">
+      <div key={index} className="bet" ref={lastBetRef}>
         <div className="value -name">{bet.name}</div>
         <div className="value -sum">{numberWithSeparator(bet.bet, '.')}</div>
         <div className="value -datetime">{bet.datetime}</div>

@@ -4,6 +4,7 @@ import {
   AcceptCancelNotification,
   ChatType,
   InteractNotification,
+  JailData,
   Kill,
   KillList,
   MessageType,
@@ -33,6 +34,7 @@ type HudState = {
   acceptCancelNotification: AcceptCancelNotification
   chat: ChatType
   binds: Bind[]
+  jail: JailData
   visibleMinimap: boolean
 }
 
@@ -203,6 +205,14 @@ const initialState: HudState = {
     // { name: 'Ещё что то', key: SkyrimScanCode.LeftMouseButton },
   ],
 
+  jail: {
+    visible: false,
+    title: 'Деморган',
+    secondsLeft: 2 * 60 * 60 + 16 * 60 + 58,
+    catcher: 'Люся Бритая Нога [F52]',
+    reason: 'Очень много наводил суеты в Вайтране',
+  },
+
   visibleMinimap: true,
 }
 
@@ -361,6 +371,17 @@ export const hudSlice = createSlice({
     /** Binds */
     setBinds(state, action: PayloadAction<Bind[]>) {
       state.binds = action.payload
+    },
+
+    /** Jail */
+    setJailData(state, action: PayloadAction<JailData>) {
+      state.jail = action.payload
+    },
+    setJailVisible(state, action: PayloadAction<boolean>) {
+      state.jail.visible = action.payload
+    },
+    setJailSecondsLeft(state, action: PayloadAction<{ value: number }>) {
+      state.jail.secondsLeft = action.payload.value
     },
 
     /** Minimap */

@@ -10,7 +10,7 @@ export const getAvailablePosition = (
     { size: { ...item.size }, isTurned: false },
     {
       size: { width: item.size.height, height: item.size.width },
-      isTurned: false,
+      isTurned: true,
     },
   ]
 

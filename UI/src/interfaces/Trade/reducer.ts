@@ -1,5 +1,4 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit'
-import { CharSlots, ItemType, Quality } from '../../shared/inventory/itemType'
 import { ConfirmStates } from '../../shared/inventory/events'
 import { GridType } from '../../shared/inventory/inventoryType'
 

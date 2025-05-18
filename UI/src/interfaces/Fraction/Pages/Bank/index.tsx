@@ -16,9 +16,9 @@ type Filter = {
 }
 
 const Filters: Filter[] = [
-  { id: LogType.Take, name: 'Взятие со склада' },
-  { id: LogType.Put, name: 'Добавление на склад' },
-  { id: LogType.Tax, name: 'Прибытие дани' },
+  { id: LogType.Take, name: 'Изъятие из хранилища' },
+  { id: LogType.Put, name: 'Добавление в хранилище' },
+  { id: LogType.Tax, name: 'Пополнение казны' },
 ]
 
 const PageBank = () => {

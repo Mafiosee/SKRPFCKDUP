@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react'
 import './styles.sass'
-import { UIKitButtonSize, UIKitButtonSizeClass } from './data/Size'
 import { UIKitButtonType, UIKitButtonTypeClass } from './data/Type'
 import { Icon, IconComponent } from '../Icons'
+import { UIKitSize, UIKitSizeClass } from '../types/Size'
 
 export type UIKitButtonProps = {
   className?: string
   type?: UIKitButtonType
-  size?: UIKitButtonSize
+  size?: UIKitSize
   disabled?: boolean
   text?: string
   iconBefore?: Icon
@@ -17,10 +17,10 @@ export type UIKitButtonProps = {
 
 const UIKitButton: React.FC<UIKitButtonProps> = ({
   className,
-  size = UIKitButtonSize.Large,
+  size = UIKitSize.Large,
   type = UIKitButtonType.Primary,
   disabled = false,
-  text = '',
+  text,
   iconBefore,
   iconAfter,
   onClick,
@@ -28,12 +28,13 @@ const UIKitButton: React.FC<UIKitButtonProps> = ({
   const classes = useMemo(
     () =>
       [
-        UIKitButtonSizeClass[size],
+        UIKitSizeClass[size],
         UIKitButtonTypeClass[type],
         disabled && 'disabled',
         className,
+        !text && 'iconOnly',
       ].join(' '),
-    [size, type, disabled],
+    [size, type, disabled, text],
   )
 
   const getIcon = (icon: Icon | undefined) => {
@@ -58,7 +59,7 @@ const UIKitButton: React.FC<UIKitButtonProps> = ({
       onClick={disabled ? () => {} : onClick}
     >
       {getIcon(iconBefore)}
-      <div className="text">{text}</div>
+      {text != null && <div className="text">{text}</div>}
       {getIcon(iconAfter)}
     </div>
   )
